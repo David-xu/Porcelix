@@ -1,0 +1,2 @@
+---- HD_STATMASK_READY_STAT Matches (1 in 1 files) ----
+Hdreg.h (z:\home\david\c_c++\porcelix\myloader\include):#define HD_STATMASK_READY_STAT      (0x40)

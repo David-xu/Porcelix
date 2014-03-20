@@ -1,0 +1,290 @@
+
+Allocating common symbols
+Common symbol       size              file
+
+raminfo_buf         0x10              mm/memory.o
+kbd_rawinput_buff   0x104             io/kbd.o
+fpage_list          0x48              mm/page.o
+hd0_info            0x10              io/hd.o
+ram_size            0x4               mm/memory.o
+n_supportfs         0x4               fs/fs.o
+hd0_pdt             0x40              io/hd.o
+vga_param_s         0x10              io/disp.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+LOAD core/main.o
+LOAD core/cmdlist.o
+LOAD io/disp.o
+LOAD io/interrupt.o
+LOAD io/kbd.o
+LOAD io/hd.o
+LOAD mm/memory.o
+LOAD mm/page.o
+LOAD fs/block.o
+LOAD fs/fs.o
+LOAD fs/ext4.o
+LOAD fs/ext2.o
+LOAD core/corestart.o
+LOAD core/entrance.o
+
+.text           0x0000000000000000     0x43d2
+ *(.init.start)
+ .init.start    0x0000000000000000       0x79 core/corestart.o
+ *(.init.text)
+ .init.text     0x0000000000000079       0x1d core/cmdlist.o
+                0x0000000000000079                cmdlist_init
+ .init.text     0x0000000000000096       0x28 io/disp.o
+                0x0000000000000096                disp_init
+ .init.text     0x00000000000000be       0xee io/interrupt.o
+                0x00000000000000be                interrupt_init
+ .init.text     0x00000000000001ac       0xac io/kbd.o
+                0x00000000000001ac                kbd_init
+ .init.text     0x0000000000000258       0x7d io/hd.o
+                0x0000000000000258                hd_init
+ .init.text     0x00000000000002d5       0xe4 mm/memory.o
+                0x00000000000002d5                mem_init
+ .init.text     0x00000000000003b9      0x197 mm/page.o
+                0x00000000000003b9                buddy_init
+ .init.text     0x0000000000000550       0x96 fs/fs.o
+                0x0000000000000550                fs_init
+                0x00000000000005e6                symbol_inittext_end = .
+ *(.text)
+ *fill*         0x00000000000005e6        0x2 00
+ .text          0x00000000000005e8      0x14f core/main.o
+                0x00000000000006b5                test
+                0x00000000000006ba                loader_entry
+ *fill*         0x0000000000000737        0x1 00
+ .text          0x0000000000000738      0x5e5 core/cmdlist.o
+                0x0000000000000af7                cmd_loop
+ *fill*         0x0000000000000d1d        0x3 00
+ .text          0x0000000000000d20     0x1065 io/disp.o
+                0x0000000000001353                test_bks
+                0x0000000000001367                n2c
+                0x000000000000158b                printf
+                0x000000000000194c                sprintf
+                0x0000000000001cd4                dump_stack
+                0x0000000000001cd9                dump_ram
+ *fill*         0x0000000000001d85        0x3 00
+ .text          0x0000000000001d88      0x120 io/interrupt.o
+ .text          0x0000000000001ea8      0x40f io/kbd.o
+                0x00000000000020d7                kbd_get_char
+                0x0000000000002134                kbdctrl_outport_r
+                0x000000000000215f                kbdctrl_outport_w
+                0x0000000000002195                kbd_int
+ *fill*         0x00000000000022b7        0x1 00
+ .text          0x00000000000022b8      0xbc4 io/hd.o
+                0x0000000000002607                hd_int
+                0x000000000000274c                hd_drv_read
+                0x0000000000002890                hd_drv_write
+ .text          0x0000000000002e7c      0x25f mm/memory.o
+ *fill*         0x00000000000030db        0x1 00
+ .text          0x00000000000030dc      0x565 mm/page.o
+                0x00000000000032a7                get_phyaddr
+                0x00000000000032c6                page_alloc
+                0x00000000000033e5                page_free
+                0x0000000000003549                freepage_dump
+ *fill*         0x0000000000003641        0x3 00
+ .text          0x0000000000003644        0x0 fs/block.o
+ .text          0x0000000000003644      0x1d5 fs/fs.o
+ *fill*         0x0000000000003819        0x3 00
+ .text          0x000000000000381c        0x0 fs/ext4.o
+ .text          0x000000000000381c      0xb50 fs/ext2.o
+ .text          0x000000000000436c       0x1f core/corestart.o
+ *fill*         0x000000000000438b        0x1 00
+ .text          0x000000000000438c       0x46 core/entrance.o
+                0x000000000000438c                kbd_int_entrance
+                0x00000000000043b8                hd_int_entrance
+
+.iplt           0x00000000000043e0        0x0
+ .iplt          0x0000000000000000        0x0 core/main.o
+
+.rodata         0x00000000000043d4      0x991
+ .rodata        0x00000000000043d4      0x15f core/main.o
+ *fill*         0x0000000000004533        0x1 00
+ .rodata        0x0000000000004534       0x8e core/cmdlist.o
+ *fill*         0x00000000000045c2        0x2 00
+ .rodata        0x00000000000045c4       0xa9 io/disp.o
+ .rodata        0x000000000000466d       0x62 io/kbd.o
+ *fill*         0x00000000000046cf        0x1 00
+ .rodata        0x00000000000046d0      0x299 io/hd.o
+ *fill*         0x0000000000004969        0x3 00
+ .rodata        0x000000000000496c      0x100 mm/memory.o
+ .rodata        0x0000000000004a6c      0x1f3 mm/page.o
+ *fill*         0x0000000000004c5f        0x1 00
+ .rodata        0x0000000000004c60       0x79 fs/fs.o
+ .rodata        0x0000000000004cd9        0x5 fs/ext4.o
+ *fill*         0x0000000000004cde        0x2 00
+ .rodata        0x0000000000004ce0       0x85 fs/ext2.o
+
+.eh_frame       0x0000000000004d68      0xe48
+ .eh_frame      0x0000000000004d68       0x98 core/main.o
+ .eh_frame      0x0000000000004e00      0x18c core/cmdlist.o
+                                        0x1a4 (size before relaxing)
+ .eh_frame      0x0000000000004f8c      0x2a0 io/disp.o
+                                        0x2b8 (size before relaxing)
+ .eh_frame      0x000000000000522c       0xa0 io/interrupt.o
+                                         0xb8 (size before relaxing)
+ .eh_frame      0x00000000000052cc      0x1a4 io/kbd.o
+                                        0x1bc (size before relaxing)
+ .eh_frame      0x0000000000005470      0x258 io/hd.o
+                                        0x270 (size before relaxing)
+ .eh_frame      0x00000000000056c8       0xa0 mm/memory.o
+                                         0xb8 (size before relaxing)
+ .eh_frame      0x0000000000005768      0x1c8 mm/page.o
+                                        0x1e0 (size before relaxing)
+ .eh_frame      0x0000000000005930       0x64 fs/fs.o
+                                         0x7c (size before relaxing)
+ .eh_frame      0x0000000000005994      0x21c fs/ext2.o
+                                        0x234 (size before relaxing)
+
+.rel.dyn        0x0000000000005bb0        0x0
+ .rel.iplt      0x0000000000000000        0x0 core/main.o
+ .rel.text      0x0000000000000000        0x0 core/main.o
+ .rel.array.cmd
+                0x0000000000000000        0x0 core/main.o
+ .rel.init.text
+                0x0000000000000000        0x0 core/main.o
+ .rel.data      0x0000000000000000        0x0 core/main.o
+
+.bss            0x0000000000005bc0      0x660
+ .bss           0x0000000000005bc0        0x0 core/main.o
+ .bss           0x0000000000005bc0       0x40 core/cmdlist.o
+                0x0000000000005bc0                n_command
+ .bss           0x0000000000005c00        0x0 io/disp.o
+ COMMON         0x0000000000005c00       0x10 io/disp.o
+                0x0000000000005c00                vga_param_s
+ .bss           0x0000000000005c10        0x0 io/interrupt.o
+ .bss           0x0000000000005c10        0x2 io/kbd.o
+ *fill*         0x0000000000005c12        0xe 00
+ COMMON         0x0000000000005c20      0x104 io/kbd.o
+                0x0000000000005c20                kbd_rawinput_buff
+ .bss           0x0000000000005d24        0x8 io/hd.o
+                0x0000000000005d24                cursel_partition
+ *fill*         0x0000000000005d2c       0x14 00
+ COMMON         0x0000000000005d40       0x60 io/hd.o
+                0x0000000000005d40                hd0_info
+                0x0000000000005d60                hd0_pdt
+ .bss           0x0000000000005da0        0x4 mm/memory.o
+ COMMON         0x0000000000005da4       0x14 mm/memory.o
+                0x0000000000005da4                raminfo_buf
+                0x0000000000005db4                ram_size
+ .bss           0x0000000000005db8        0x8 mm/page.o
+                0x0000000000005db8                pagelist
+                0x0000000000005dbc                n_pages
+ COMMON         0x0000000000005dc0       0x48 mm/page.o
+                0x0000000000005dc0                fpage_list
+ .bss           0x0000000000005e08        0x0 fs/block.o
+ .bss           0x0000000000005e08        0x0 fs/fs.o
+ COMMON         0x0000000000005e08        0x4 fs/fs.o
+                0x0000000000005e08                n_supportfs
+ .bss           0x0000000000005e0c        0x0 fs/ext4.o
+ *fill*         0x0000000000005e0c       0x14 00
+ .bss           0x0000000000005e20      0x400 fs/ext2.o
+ .bss           0x0000000000006220        0x0 core/corestart.o
+ .bss           0x0000000000006220        0x0 core/entrance.o
+
+.data           0x0000000000006220      0xb6c
+                0x0000000000006220                gdt_table = .
+ *(.gdt.data)
+ .gdt.data      0x0000000000006220       0x20 core/corestart.o
+                0x0000000000006240                idt_table = .
+ *(.idt.data)
+ .idt.data      0x0000000000006240      0x800 core/corestart.o
+                0x0000000000006a40                fsdesc_array = .
+ *(.array.fs)
+ .array.fs      0x0000000000006a40       0x40 fs/ext4.o
+                0x0000000000006a40                ext4_fs
+ .array.fs      0x0000000000006a80       0x40 fs/ext2.o
+                0x0000000000006a80                ext2_fs
+                0x0000000000006ac0                fsdesc_array_end = .
+                0x0000000000006ac0                cmddesc_array = .
+ *(.array.cmd)
+ .array.cmd     0x0000000000006ac0       0x20 core/cmdlist.o
+                0x0000000000006ac0                cmd_test
+                0x0000000000006ad0                cmd_help
+ .array.cmd     0x0000000000006ae0       0x10 io/kbd.o
+                0x0000000000006ae0                cmd_reboot
+ .array.cmd     0x0000000000006af0       0x10 io/hd.o
+                0x0000000000006af0                cmd_hdop
+ .array.cmd     0x0000000000006b00       0x10 mm/memory.o
+                0x0000000000006b00                cmd_ramdisp
+ .array.cmd     0x0000000000006b10       0x20 fs/fs.o
+                0x0000000000006b10                cmd_ls
+                0x0000000000006b20                cmd_cd
+                0x0000000000006b30                cmddesc_array_end = .
+ *(.data)
+ .data          0x0000000000006b30        0x0 core/main.o
+ .data          0x0000000000006b30        0x0 core/cmdlist.o
+ .data          0x0000000000006b30       0x14 io/disp.o
+                0x0000000000006b30                vga_console
+ .data          0x0000000000006b44        0x0 io/interrupt.o
+ *fill*         0x0000000000006b44       0x1c 00
+ .data          0x0000000000006b60      0x100 io/kbd.o
+ .data          0x0000000000006c60       0xa0 io/hd.o
+                0x0000000000006c80                hdpart_desc
+ .data          0x0000000000006d00        0x4 mm/memory.o
+ *fill*         0x0000000000006d04       0x1c 00
+ .data          0x0000000000006d20       0x24 mm/page.o
+                0x0000000000006d20                range_name
+ .data          0x0000000000006d44        0x0 fs/block.o
+ *fill*         0x0000000000006d44       0x1c 00
+ .data          0x0000000000006d60       0x20 fs/fs.o
+ .data          0x0000000000006d80        0x0 fs/ext4.o
+ .data          0x0000000000006d80        0x0 fs/ext2.o
+ .data          0x0000000000006d80        0x0 core/corestart.o
+ .data          0x0000000000006d80        0x0 core/entrance.o
+ *(.init.data)
+ .init.data     0x0000000000006d80        0xc core/corestart.o
+                0x0000000000006d8c                symbol_sys_end = .
+OUTPUT(core.elf elf32-i386)
+
+.igot.plt       0x0000000000006d8c        0x0
+ .igot.plt      0x0000000000000000        0x0 core/main.o
+
+.comment        0x0000000000000000       0x2a
+ .comment       0x0000000000000000       0x2a core/main.o
+                                         0x2b (size before relaxing)
+ .comment       0x0000000000000000       0x2b core/cmdlist.o
+ .comment       0x0000000000000000       0x2b io/disp.o
+ .comment       0x0000000000000000       0x2b io/interrupt.o
+ .comment       0x0000000000000000       0x2b io/kbd.o
+ .comment       0x0000000000000000       0x2b io/hd.o
+ .comment       0x0000000000000000       0x2b mm/memory.o
+ .comment       0x0000000000000000       0x2b mm/page.o
+ .comment       0x0000000000000000       0x2b fs/block.o
+ .comment       0x0000000000000000       0x2b fs/fs.o
+ .comment       0x0000000000000000       0x2b fs/ext4.o
+ .comment       0x0000000000000000       0x2b fs/ext2.o
+
+.note.GNU-stack
+                0x0000000000000000        0x0
+ .note.GNU-stack
+                0x0000000000000000        0x0 core/main.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 core/cmdlist.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 io/disp.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 io/interrupt.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 io/kbd.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 io/hd.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 mm/memory.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 mm/page.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 fs/block.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 fs/fs.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 fs/ext4.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 fs/ext2.o
