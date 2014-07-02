@@ -48,7 +48,7 @@ core.elf: $(obj)
 $(obj):$(src)
 
 clean:
-	rm -f $(obj) core.elf core.map core.bin boot.o boot.bin *~
+	rm -f $(obj) core.elf core.map core.bin boot.o boot.bin *~ core/*~
 
 boot_install:
 	$(DD) if=boot.bin  of=$(DESTIMG_DIR) bs=512 count=1  conv=notrunc
