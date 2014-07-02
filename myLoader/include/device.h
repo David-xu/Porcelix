@@ -14,12 +14,13 @@ typedef struct _device_driver{
     void *drv_param;
 }device_driver_t;
 
-typedef struct _device{
-    u8 *name;
+typedef struct _device {
+    char *name;
     enum dev_type   device_type;
     device_driver_t *driver;            /*  */
 
     void *dev_param;                    /* some device private paramters */
-}device_t;
+} device_t;
 
 #endif
+

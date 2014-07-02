@@ -1,5 +1,5 @@
 #include "io.h"
-#include "string.h"
+#include "ml_string.h"
 #include "assert.h"
 
 #define VGA_RSELECT         (0x03D4)
@@ -63,11 +63,11 @@ static void vga_screen_clear(struct vga_param *param)
     param->set_cursal(param);
 }
 
-static void vga_console_write(struct console *con, u8 *str, u16 len)
+static void vga_console_write(struct console *con, char *str, u16 len)
 {
     struct vga_param *param = con->param;
     u16 i, j, k, *srcpix, *dstpix;
-    u8 ch;
+    char ch;
     /*  */
     while (((ch = *str++) != '\0') && (len-- != 0))
     {
@@ -174,6 +174,13 @@ void disp_init()
     vga_console.init(&vga_console);
 
     ((struct vga_param *)(vga_console.param))->screen_clear(vga_console.param);
+
+    printf("********************************************************************************");
+    printf("*                                                                              *");
+    printf("*              This is myLoader, all rights reserved by David.                 *");
+    printf("*                                                                              *");
+    printf("********************************************************************************\n");
+    printf("System Begin...\n");
 }
 
 
@@ -198,9 +205,10 @@ u8 n2c(u8 num)
 /* if width == 0, then output the whole texts */
 /* basenum: 10 or 16 or 8 */
 
-static u16 num_fmt(u32 num, u8 *buf, u8 basenum, u16 width, u8 prefix, u8 flag)
+static u16 num_fmt(u32 num, char *buf, u8 basenum, u16 width, char prefix, char flag)
 {
-    u8 tempbuf[16], idx = sizeof(tempbuf), len = 0;
+    char tempbuf[16];
+    u8 idx = sizeof(tempbuf), len = 0;
 
     if (0 == num)
     {
@@ -283,15 +291,15 @@ enum PRINTF_STATE
 
 /* let's keep it simple */
 /* todo: */
-int printf(u8 *fmt, ...)
+int printf(char *fmt, ...)
 {
     u32 *args = ((u32 *)&(fmt)) + 1;
     u16 width = 0, idx = 0;
-    u8 flag = ' ', ch, textbuf[256];
+    char flag = ' ', ch, textbuf[256];
     enum PRINTF_STATE state = S_CHAR;
     
     while ((ch = *fmt++) != '\0')
-    {   
+    {
         if ((state == S_PRE_FLAG) ||
             (state == S_PRE_WIDTH) ||
             (state == S_PRE_PERC) ||
@@ -353,8 +361,8 @@ int printf(u8 *fmt, ...)
             }
             else if (ch == 's')
             {
-                u8 chtmp, *src = (u8 *)(*args++);
-                while (chtmp = *src++)
+                char chtmp, *src = (char *)(*args++);
+                while ((chtmp = *src++) != 0)
                 {
                     textbuf[idx++] = chtmp;
                 }
@@ -388,13 +396,15 @@ int printf(u8 *fmt, ...)
     textbuf[idx++] = '\0';
 
     vga_console.write(&vga_console, textbuf, idx);
+
+    return 0;
 }
 
-int sprintf(u8 *buf, u8 *fmt, ...)
+int sprintf(char *buf, char *fmt, ...)
 {
     u32 *args = ((u32 *)&(fmt)) + 1;
     u16 width = 0, idx = 0;
-    u8 flag = ' ', ch;
+    char flag = ' ', ch;
     enum PRINTF_STATE state = S_CHAR;
     
     while ((ch = *fmt++) != '\0')
@@ -460,8 +470,8 @@ int sprintf(u8 *buf, u8 *fmt, ...)
             }
             else if (ch == 's')
             {
-                u8 chtmp, *src = (u8 *)(*args++);
-                while (chtmp = *src++)
+                char chtmp, *src = (char *)(*args++);
+                while ((chtmp = *src++) != 0)
                 {
                     buf[idx++] = chtmp;
                 }
@@ -493,6 +503,8 @@ int sprintf(u8 *buf, u8 *fmt, ...)
         }
     }
     buf[idx++] = '\0';
+
+    return 0;
 }
 
 /* dump stack */

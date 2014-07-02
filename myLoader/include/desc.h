@@ -3,7 +3,7 @@
 
 #include "io.h"
 #include "config.h"
-#include "string.h"
+#include "ml_string.h"
 
 enum X86_VECTORTYPE{
     X86_VECTOR_DE = 0,          /* 0 : divi error */
@@ -30,7 +30,7 @@ enum X86_VECTORTYPE{
 /* 8259A master */
     X86_VECTOR_IRQ_20 = 0x20,   /* 8253                     */
     X86_VECTOR_IRQ_21,          /* kbd INT                  */
-    X86_VECTOR_IRQ_22,
+    X86_VECTOR_IRQ_22,          /* the 8259A slaver         */
     X86_VECTOR_IRQ_23,          /* SeriPort 02              */
     X86_VECTOR_IRQ_24,          /* SeriPort 01              */
     X86_VECTOR_IRQ_25,          /* ParaPort 02              */

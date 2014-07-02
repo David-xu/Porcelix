@@ -37,6 +37,9 @@ dick_address_pack:
 
 
 core_loader:
+	/* save the boot device */
+	movb	%dl, boot_dev
+
 	/* load the core IMGCORE_LOADADDR_BASE:IMGCORE_LOADADDR_OFFSET */
 	movw	$dick_address_pack, %si
 	movb	$0x42, %ah				/* disk block read */
@@ -49,6 +52,8 @@ core_loader:
 /* jump to the core entry */
 	jmp	$IMGCORE_LOADADDR_BASE, $IMGCORE_LOADADDR_OFFSET
 
+.org	0x1A0
+boot_dev: .byte 0		/*  */
 
-.org 	0x1FE
-.word	0xAA55
+.org	0x1FE
+.word	0xAA55			/* off:0x1FE */

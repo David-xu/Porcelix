@@ -11,43 +11,95 @@
 #include "command.h"
 #include "device.h"
 #include "block.h"
+#include "module.h"
 
 /* we get the harddisk infomation in the core start session. */
 struct hd_info hd0_info /* _SECTION_(.init.data) */;
+struct hd_info hd1_info;
 
 /* we get the harddisk partitin table in the core start session. */
 struct hd_dptentry hd0_pdt[HD_PDTENTRY_NUM] /* _SECTION_(.init.data) */;
 
 static struct hd_request *hd_cur_rq;
 
+static void hd_waitforfree()
+{
+    u8 status;
+    do {
+        status = inb(PORT_HD_STAT_COMMAND);
+    } while ((status & HD_STATMASK_READY_STAT) == 0);
+
+    DEBUG_HD("hd_waitforfree, status:%#2x\n", status);
+}
+
+static inline int wait_DRQ(void)
+{
+	int retries;
+	int stat;
+
+	for (retries = 0; retries < 100000; retries++) {
+		stat = inb(PORT_HD_STAT_COMMAND);
+		if (stat & HD_STATMASK_DRQ_STAT)
+			return 0;
+	}
+	return -1;
+}
+
+
 void hd_int(void)
 {
-    u8 n_sec;
     u16 n_hword, *data;
 
-    DEBUG("hd int trace...\n");
+    DEBUG_HD("hd int trace... "
+             "hd_cur_rq:0x%#8x PORT_HD_STAT_COMMAND:0x#2x\n",
+             (u32)hd_cur_rq,
+             inb(PORT_HD_STAT_COMMAND));
 
     if (hd_cur_rq == NULL)
         return;
 
-    n_sec = hd_cur_rq->sect_num;
+    wait_DRQ();
+
     data = (u16 *)hd_cur_rq->buff;
 
     /* if read op, then cp the data into buff */
     if (hd_cur_rq->hdreq == HDREQ_READ)
     {
-        while (n_sec--)
+        n_hword = 256;
+        while (n_hword--)
         {
+            *data++ = inw(PORT_HD_DATA);
+        }
+        (hd_cur_rq->sect_num)--;
+        hd_cur_rq->buff = data;
+
+        if (hd_cur_rq->sect_num == 0)
+        {
+            /* send sig */
+            hd_cur_rq->flag = 0;
+        }
+    }
+    else if (hd_cur_rq->hdreq == HDREQ_WRITE)
+    {
+        if (hd_cur_rq->sect_num == 0)
+        {
+            /* send sig */
+            hd_cur_rq->flag = 0;
+        }
+        else
+        {
+            wait_DRQ();
             n_hword = 256;
             while (n_hword--)
             {
-                *data++ = inw(PORT_HD_DATA);
+                outw(*data++, PORT_HD_DATA);
             }
+            (hd_cur_rq->sect_num)--;
+            hd_cur_rq->buff = data;
         }
     }
 
-    /* send sig */
-    hd_cur_rq->flag = 0;
+
 }
 
 /*
@@ -70,22 +122,12 @@ static void hd_partsec2chs(device_t *dev, struct hd_request *rq, u32 part_logics
     rq->head_start = logicsect / (hdinfo->n_sect);
     rq->sect_start = 1 + (logicsect % (hdinfo->n_sect));   /* the hd start at: C(0)+H(0)+S(1) */
 
-    DEBUG("     operation : %s\n", rq->hdreq == HDREQ_READ ? "read" : "write");
-    DEBUG("      rq->buff : 0x%#8x\n", rq->buff);
-    DEBUG("  rq->sect_num : 0x%#8x\n", rq->sect_num);
-    DEBUG(" rq->cyl_start : 0x%#8x\n", rq->cyl_start);
-    DEBUG("rq->head_start : 0x%#8x\n", rq->head_start);
-    DEBUG("rq->sect_start : 0x%#8x\n", rq->sect_start);
-}
-
-static void hd_waitforfree()
-{
-    u8 status;
-    do {
-        status = inb(PORT_HD_STAT_COMMAND);
-    } while ((status & HD_STATMASK_READY_STAT) == 0);
-
-    DEBUG("hd_waitforfree, status:%#2x\n", status);
+    DEBUG_HD("     operation : %s\n", rq->hdreq == HDREQ_READ ? "read" : "write");
+    DEBUG_HD("      rq->buff : 0x%#8x\n", rq->buff);
+    DEBUG_HD("  rq->sect_num : 0x%#8x\n", rq->sect_num);
+    DEBUG_HD(" rq->cyl_start : 0x%#8x\n", rq->cyl_start);
+    DEBUG_HD("rq->head_start : 0x%#8x\n", rq->head_start);
+    DEBUG_HD("rq->sect_start : 0x%#8x\n", rq->sect_start);
 }
 
 /*
@@ -105,6 +147,11 @@ int hd_drv_read(device_t *dev, u32 addr, void *buff, u32 size)
 
     hd_waitforfree();
 
+
+    /*  */
+    outb(0x08, PORT_HD_CMD),
+    /*  */
+    outb(0, PORT_HD_ERR_PRECOMP);
     /* sector num */
     outb(rq.sect_num, PORT_HD_NSECTOR);
     /* sector start */
@@ -117,12 +164,14 @@ int hd_drv_read(device_t *dev, u32 addr, void *buff, u32 size)
     /* launch the read cmd */
     rq.flag = 1;
     hd_cur_rq = &rq;
+    barrier();
     outb(HD_CMD_READ, PORT_HD_STAT_COMMAND);
+    barrier();
 
-    DEBUG("hd read begin...\n");
+    DEBUG_HD("hd read begin...\n");
     while (rq.flag);
     hd_cur_rq = NULL;
-    DEBUG("hd read complete.\n");
+    DEBUG_HD("hd read complete.\n");
 
     return 0;
 }
@@ -131,16 +180,20 @@ int hd_drv_write(device_t *dev, u32 addr, void *buff, u32 size)
 {
     ASSERT(((u32)(buff) % 2) == 0);
 
-    u32 n_sec;
     u16 n_hword, *data;
     struct hd_request rq = {.hdreq = HDREQ_WRITE};
 
     rq.buff = buff;
     rq.sect_num = size * (LOGIC_BLOCK_SIZE / HD_SECTOR_SIZE);
     hd_partsec2chs(dev, &rq, addr * (LOGIC_BLOCK_SIZE / HD_SECTOR_SIZE));
+hd_drv_write_retry:
 
     hd_waitforfree();
-    
+
+    /*  */
+    outb(0x08, PORT_HD_CMD),
+    /*  */
+    outb(0, PORT_HD_ERR_PRECOMP);
     /* sector num */
     outb(rq.sect_num, PORT_HD_NSECTOR);
     /* sector start */
@@ -153,31 +206,39 @@ int hd_drv_write(device_t *dev, u32 addr, void *buff, u32 size)
     /* launch the write cmd */
     rq.flag = 1;
     hd_cur_rq = &rq;
+    barrier();
     outb(HD_CMD_WRITE, PORT_HD_STAT_COMMAND);
+    barrier();
 
-    /* cp data into the hd hardware buff */
-    n_sec = rq.sect_num;
-    data = (u16 *)rq.buff;
-
-    while (n_sec--)
+    /* wait for the DRQ */
+    if (wait_DRQ() != 0)
     {
-        n_hword = 256;
-        while (n_hword--)
-        {
-            outw(*data++, PORT_HD_DATA);
-        }
+        goto hd_drv_write_retry;
     }
 
-    DEBUG("hd write begin...\n");
+    /* cp data into the hd hardware buff */
+    data = (u16 *)rq.buff;
+
+    n_hword = 256;
+    while (n_hword--)
+    {
+        outw(*data++, PORT_HD_DATA);
+    }
+    (hd_cur_rq->sect_num)--;
+    hd_cur_rq->buff = data;
+
+    barrier();
+
+    DEBUG_HD("hd write begin...\n");
     while (rq.flag);
     hd_cur_rq = NULL;
-    DEBUG("hd write complete.\n");
+    DEBUG_HD("hd write complete.\n");
 
     return 0;
 }
 
 
-static device_driver_t hd_drv =
+static device_driver_t hd0_drv =
 {
     .read = hd_drv_read,
     .write = hd_drv_write,
@@ -185,33 +246,13 @@ static device_driver_t hd_drv =
     .drv_param = &hd0_info,
 };
 
-void hd_init(void)
+static device_driver_t hd1_drv =
 {
-    u8 intmask;
+    .read = hd_drv_read,
+    .write = hd_drv_write,
 
-    hd_cur_rq = NULL;
-
-    _cli();
-
-    /* OCW1, set 8259A slaver INTMASK reg */
-    intmask = inb(PORT_8259A_SLAVER_A1);    /* the INTMAST reg is the 0x21 and 0xA1 */
-    outb(intmask & (~0x40), PORT_8259A_SLAVER_A1);
-    
-    set_idt(X86_VECTOR_IRQ_2E, hd_int_entrance);        /* harddisk interrupt */
-
-    _sti();
-
-    static device_t hd_devlist[HD_PDTENTRY_NUM] = {
-        {.name = "HD(0,0)", .device_type = DEVTYPE_BLOCK, .driver = &hd_drv, .dev_param = &(hd0_pdt[0])},
-        {.name = "HD(0,1)", .device_type = DEVTYPE_BLOCK, .driver = &hd_drv, .dev_param = &(hd0_pdt[1])},
-        {.name = "HD(0,2)", .device_type = DEVTYPE_BLOCK, .driver = &hd_drv, .dev_param = &(hd0_pdt[2])},
-        {.name = "HD(0,3)", .device_type = DEVTYPE_BLOCK, .driver = &hd_drv, .dev_param = &(hd0_pdt[3])}};
-    u32 i;
-    for (i = 0; i < HD_PDTENTRY_NUM; i++)
-    {
-        hdpart_desc[i].dev = hd_devlist + i;
-    }
-}
+    .drv_param = &hd1_info,
+};
 
 
 /*
@@ -235,7 +276,7 @@ struct partition_desc *cursel_partition = NULL;
  * -d       : display all the hd partition
  * -m       : mount the hd partition
  */
-static void cmd_hdop_opfunc(u8 *argv[], u8 argc, void *param)
+static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
 {
     unsigned i;
 
@@ -343,6 +384,35 @@ static void cmd_hdop_opfunc(u8 *argv[], u8 argc, void *param)
         
         cursel_partition = hdpart_desc + dstpartidx;
     }
+    /* read one sector */
+    else if (memcmp(argv[1], "-r", strlen("-r")) == 0)
+    {
+        if (argc != 4)
+        {
+            printf("Invalid parameter number. should be \"-r sector addr.\"\n");
+            return;
+        }
+        u32 sector = str2num(argv[2]);
+        u32 addr = str2num(argv[3]);
+        device_t *hd0 = gethd_dev(HDPART_HD0_WHOLE);
+        hd0->driver->read(hd0, sector, (void *)addr, 1);
+        printf("read finished.\n");
+    }
+    /* write one sector */
+    else if (memcmp(argv[1], "-w", strlen("-w")) == 0)
+    {
+        if (argc != 4)
+        {
+            printf("Invalid parameter number. should be \"-w sector addr.\"\n");
+            return;
+        }
+        u32 sector = str2num(argv[2]);
+        u32 addr = str2num(argv[3]);
+        device_t *hd0 = gethd_dev(HDPART_HD0_WHOLE);
+        hd0->driver->write(hd0, sector, (void *)addr, 1);
+        printf("write finished.\n");
+    }
+
     else
     {
         printf("Unknown option \"%s\".\n", argv[1]);
@@ -352,8 +422,81 @@ static void cmd_hdop_opfunc(u8 *argv[], u8 argc, void *param)
 struct command cmd_hdop _SECTION_(.array.cmd) =
 {
     .cmd_name   = "hdop",
-    .info       = "Harddisk operation. -m [partition], -s [partition], -d.",
+    .info       = "Harddisk operation. -m [partition], -s [partition], -d, -r [sect] [addr], -w [sect] [addr].",
     .op_func    = cmd_hdop_opfunc,
 };
+
+/* total hd */
+static struct hd_dptentry logictotalhd = {
+    .boot_ind = 0,
+    .start_head = 0,
+    .start_sect = 0,
+    .start_cyl = 0,
+    .sys_ind = 0,
+    .end_head = 0,
+    .end_sect = 0,
+    .end_cyl = 0,
+    .start_logicsect = 0,
+    .n_logicsect = 0,
+};
+
+/* whole hd partition */
+static device_t hd0_wholehd_dev = {
+    .name = "HD(0)", .device_type = DEVTYPE_BLOCK, .driver = &hd0_drv, .dev_param = &logictotalhd,
+};
+
+/* whole hd partition */
+static device_t hd1_wholehd_dev = {
+    .name = "HD(1)", .device_type = DEVTYPE_BLOCK, .driver = &hd1_drv, .dev_param = &logictotalhd,
+};
+
+
+/* hd logic partition */
+static device_t hd0_logicpart_devlist[HD_PDTENTRY_NUM] = {
+    {.name = "HD(0,0)", .device_type = DEVTYPE_BLOCK, .driver = &hd0_drv, .dev_param = &(hd0_pdt[0])},
+    {.name = "HD(0,1)", .device_type = DEVTYPE_BLOCK, .driver = &hd0_drv, .dev_param = &(hd0_pdt[1])},
+    {.name = "HD(0,2)", .device_type = DEVTYPE_BLOCK, .driver = &hd0_drv, .dev_param = &(hd0_pdt[2])},
+    {.name = "HD(0,3)", .device_type = DEVTYPE_BLOCK, .driver = &hd0_drv, .dev_param = &(hd0_pdt[3])}
+};
+
+device_t *gethd_dev(u8 part)
+{
+    if (part == HDPART_HD0_WHOLE)
+    {
+        return &hd0_wholehd_dev;
+    }
+    else if (part == HDPART_HD1_WHOLE)
+    {
+        return &hd1_wholehd_dev;
+    }
+    
+    return &(hd0_logicpart_devlist[part]);
+}
+
+
+static void __init hd_init(void)
+{
+    u8 intmask;
+
+    hd_cur_rq = NULL;
+
+    _cli();
+
+    /* OCW1, set 8259A slaver INTMASK reg */
+    intmask = inb(PORT_8259A_SLAVER_A1);    /* the INTMAST reg is the 0x21 and 0xA1 */
+    outb(intmask & (~0x40), PORT_8259A_SLAVER_A1);
+    
+    set_idt(X86_VECTOR_IRQ_2E, hd_int_entrance);        /* harddisk interrupt */
+
+    _sti();
+    
+    u32 i;
+    for (i = 0; i < HD_PDTENTRY_NUM; i++)
+    {
+        hdpart_desc[i].dev = hd0_logicpart_devlist + i;
+    }
+}
+
+module_init(hd_init, 2);
 
 

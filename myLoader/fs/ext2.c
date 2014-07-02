@@ -7,7 +7,7 @@
 #include "hd.h"
 #include "memory.h"
 #include "public.h"
-#include "string.h"
+#include "ml_string.h"
 #include "device.h"
 #include "block.h"
 #include "debug.h"
@@ -105,24 +105,24 @@ static int ext2_load_sb(struct file_system *fs, void *param)
         return -1;
     }
     /* locate the ext2_info position */
-    struct ext2_info *info = (struct ext2_info *)((u32)(get_phyaddr(fsparam)) + 4 * 1024);
+    struct ext2_info *info = (struct ext2_info *)((u32)(page2phyaddr(fsparam)) + 4 * 1024);
     /* ext2_info parameter set */
     info->fsparam = fsparam;
-    info->sb = (struct ext2_superblock *)get_phyaddr(fsparam);
+    info->sb = (struct ext2_superblock *)page2phyaddr(fsparam);
 
     /* get the superblock, we have to locate the position */
     dev->driver->read(dev, 1, info->sb, 1);
     /* check the magic num, make sure this is the ext2 filesystem. */
     if (info->sb->s_magic != EXT2_MAGICNUM)
     {
-        DEBUG("ext2 super_block broken, invalid magic.\n");
+        printf("ext2 super_block broken, invalid magic.\n");
         page_free(fsparam);     /* free fsparam page */
         return -1;
     }
     /* check the inode size */
     if (info->sb->s_inode_size != sizeof(struct ext2_inode))
     {
-        DEBUG("ext2 super_block broken, invalid inodesize.\n");
+        printf("ext2 super_block broken, invalid inodesize.\n");
         page_free(fsparam);     /* free fsparam page */
         return -1;
     }    
@@ -173,9 +173,9 @@ static int ext2_load_block(struct file_system *fs, void *param, u32 blockidx, vo
     struct ext2_info *info = (struct ext2_info *)(part_desc->param);
     device_t *dev = part_desc->dev;
 
-    dev->driver->read(dev, blockidx * info->blk_size / LOGIC_BLOCK_SIZE,
-                      buff,
-                      info->blk_size / LOGIC_BLOCK_SIZE);
+    return dev->driver->read(dev, blockidx * info->blk_size / LOGIC_BLOCK_SIZE,
+                             buff,
+                             info->blk_size / LOGIC_BLOCK_SIZE);
 }
 
 static int ext2_get_inode(struct file_system *fs, void *param, inode_t *inode, u32 inode_idx)
@@ -262,12 +262,12 @@ static int ext2_unmount(struct file_system *fs, void *param)
     return 0;
 }
 
-static u8 *ext2_getcurdir(struct file_system *fs, void *param)
+static char *ext2_getcurdir(struct file_system *fs, void *param)
 {
     struct partition_desc *part_desc = (struct partition_desc *)param;
     struct ext2_info *fsinfo = (struct ext2_info *)(part_desc->param);
-    static u8 ext2_dirbuff[EXT2_MAXDIRSIZE];
-    u8 *buf = ext2_dirbuff;
+    static char ext2_dirbuff[EXT2_MAXDIRSIZE];
+    char *buf = ext2_dirbuff;
     *buf = '/';
 
     if (fsinfo->curdir_idx == 0)
@@ -330,7 +330,7 @@ static struct page* ext2_stat(struct file_system *fs, void *param)
     DEBUG("rank: %d\n", count);
     
     struct page *dentry_array_page = page_alloc(count);
-    stat_dentry_array_t *stat_dentry = (stat_dentry_array_t *)get_phyaddr(dentry_array_page);
+    stat_dentry_array_t *stat_dentry = (stat_dentry_array_t *)page2phyaddr(dentry_array_page);
     stat_dentry->n_dentry = n_dentry;
     dentry_t *buffentry = stat_dentry->dentry_array;
     entryp = fsinfo->fsblock_buff01;      /* ext2 dentry buff */
@@ -353,11 +353,11 @@ static struct page* ext2_stat(struct file_system *fs, void *param)
     return dentry_array_page;
 }
 
-static int ext2_changecurdir(struct file_system *fs, void *param, u8 *dirname)
+static int ext2_changecurdir(struct file_system *fs, void *param, char *dirname)
 {
     struct partition_desc *part_desc = (struct partition_desc *)param;
     struct ext2_info *fsinfo = (struct ext2_info *)(part_desc->param);
-    u8 *subdirname[16], n_subdir;
+    char *subdirname[16], n_subdir;
 
     /*  */
     if (dirname[0] == '/')
@@ -385,7 +385,7 @@ static int ext2_changecurdir(struct file_system *fs, void *param, u8 *dirname)
         {
             return -1;
         }
-        stat_dentry_array_t *stat_dentry = (stat_dentry_array_t *)get_phyaddr(buffpage);
+        stat_dentry_array_t *stat_dentry = (stat_dentry_array_t *)page2phyaddr(buffpage);
         u32 entry_idx;
         dentry_t *listentry;
         for (entry_idx = 0; entry_idx < stat_dentry->n_dentry; entry_idx++)

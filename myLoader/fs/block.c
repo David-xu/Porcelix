@@ -22,7 +22,7 @@ void* bio_getbuff(bio_t *bio, u32 bkidx)
             /* if the bkidx has been cached, just return addr */
             if (bio_cache->logicbk_idx[i] == bkidx)
             {
-                return (void *)((u32)get_phyaddr(bio_cache->buffpage) + i * LOGIC_BLOCK_SIZE);
+                return (void *)((u32)page2phyaddr(bio_cache->buffpage) + i * LOGIC_BLOCK_SIZE);
             }
             else if ((bio_cache->logicbk_idx[i] == INVALID_LOGICBKIDX) &&
                      (free == NULL))

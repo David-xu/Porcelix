@@ -3,6 +3,12 @@
 
 #define _SECTION_(secname)  __attribute__ ((__section__(#secname)))
 
+#define __init  _SECTION_(.init.text)
+
+/* make the compiler happy */
+#define __used  __attribute__((__used__))
+
+
 /*
  * .init
  * .init.data
@@ -20,8 +26,7 @@
 #define DEFINE_SYMBOL(sym)          extern u32 sym[0]
 
 /* get symbol value */
-#define GET_SYMBOLVALUE(sym)        ((unsigned)(sym))
-
+#define GET_SYMBOLVALUE(sym)        ((u32)(sym))
 
 #endif
 

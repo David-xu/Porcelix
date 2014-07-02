@@ -4,6 +4,13 @@
 #include "typedef.h"
 #include "section.h"
 
+/* just output any byte to port 0x80, we used it to delay */
+static inline void io_delay(void)
+{
+	const u16 DELAY_PORT = 0x80;
+	asm volatile("outb %%al,%0" : : "dN" (DELAY_PORT));
+}
+
 /* Basic port I/O */
 static inline void outb(u8 v, u16 port)
 {
@@ -41,21 +48,18 @@ static inline u32 inl(u16 port)
 
 
 struct console{
-    u8 *name;
+    char *name;
     void (*init)(struct console *con);
-    void (*write)(struct console *con, u8 *buf, u16 len);
-    u16 (*read)(struct console *con, u8 *buf, u16 len);     // 
+    void (*write)(struct console *con, char *buf, u16 len);
+    u16 (*read)(struct console *con, char *buf, u16 len);
     
     void *param;
 };
 
 void disp_init() _SECTION_(.init.text);
-void kbd_init() _SECTION_(.init.text);
-void hd_init() _SECTION_(.init.text);
 
-
-int printf(u8 *fmt, ...);
-int sprintf(u8 *buf, u8 *fmt, ...);
+int printf(char *fmt, ...);
+int sprintf(char *buf, char *fmt, ...);
 
 
 /* kbd get one char */

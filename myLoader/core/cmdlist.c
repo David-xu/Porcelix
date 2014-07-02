@@ -2,15 +2,17 @@
 #include "debug.h"
 #include "list.h"
 #include "io.h"
-#include "string.h"
+#include "ml_string.h"
 #include "command.h"
 #include "memory.h"
 #include "section.h"
 #include "hd.h"
+#include "module.h"
+#include "net.h"
 
 unsigned n_command = 0;
 
-static void cmd_test_opfunc(u8 *argv[], u8 argc, void *param)
+static void cmd_test_opfunc(char *argv[], int argc, void *param)
 {
     /* show the left ram space */
     freepage_dump(TRUE);
@@ -23,7 +25,7 @@ struct command cmd_test _SECTION_(.array.cmd) =
     .op_func    = cmd_test_opfunc,
 };
 
-static void cmd_help_opfunc(u8 *argv[], u8 argc, void *param)
+static void cmd_help_opfunc(char *argv[], int argc, void *param)
 {
     unsigned i;
     struct command *cmd = (struct command *)param;
@@ -45,17 +47,10 @@ struct command cmd_help _SECTION_(.array.cmd) =
     .op_func    = cmd_help_opfunc,
 };
 
-
-
-void cmdlist_init(void)
+static void cmd_parse_impl(char *cmd)
 {
-    n_command = (GET_SYMBOLVALUE(cmddesc_array_end) - (unsigned)cmddesc_array) / sizeof(struct command);
-}
-
-static void cmd_parse_impl(u8 *cmd)
-{
-    u8 *argv[16] = {NULL}, argc = 0;
-    int i, flag = 0;
+    char *argv[16] = {NULL};
+    int i, argc = 0;
     
     argc = parse_str_by_inteflag(cmd, argv, 2, " \n");
 
@@ -64,7 +59,7 @@ static void cmd_parse_impl(u8 *cmd)
 
     for (i = 0; i < n_command; i++)
     {
-        struct command *cmd = cmddesc_array + i;
+        struct command *cmd = (struct command *)cmddesc_array + i;
         u32 argv01_len = strlen(argv[0]);
         u32 cmd_len = strlen(cmd->cmd_name);
         if (argv01_len > cmd_len)
@@ -82,9 +77,9 @@ static void cmd_parse_impl(u8 *cmd)
     printf("Known. Please input \'help\' to get help.\n");
 }
 
-static u8* cmd_get_title()
+static char* cmd_get_title(void)
 {
-    static u8 title[32];
+    static char title[32];
 
     if (cursel_partition == NULL)
     {
@@ -100,11 +95,11 @@ static u8* cmd_get_title()
     return title;
 }
 
-void cmd_loop()
+void cmd_loop(void)
 {
     int i, getch = 0;
     u16 pos = 0;
-    u8 cmdBuff[256] = {0};
+    char cmdBuff[256] = {0};
     
     while(1)
     {
@@ -113,7 +108,11 @@ void cmd_loop()
         {
             getch = kbd_get_char();
             if (getch == -1)
+            {
+                /* there is no kbd input, we just do some thing */
+                do_fbproc();
                 continue;
+            }
 
             // backspace
             if (getch == '\b')
@@ -132,8 +131,8 @@ void cmd_loop()
             {
                 for (i = 0; i < n_command; i++)
                 {
-                    struct command *cmd = cmddesc_array + i;
-                    u8* cmd_name = cmd->cmd_name;
+                    struct command *cmd = (struct command *)cmddesc_array + i;
+                    char *cmd_name = cmd->cmd_name;
                     u16 cmdlen = strlen(cmd_name);
 
                     if (cmdlen < pos)
@@ -166,5 +165,12 @@ void cmd_loop()
         getch = 0;
     }
 }
+
+static void __init cmdlist_init(void)
+{
+    n_command = (GET_SYMBOLVALUE(cmddesc_array_end) - GET_SYMBOLVALUE(cmddesc_array)) / sizeof(struct command);
+}
+
+module_init(cmdlist_init, 7);
 
 

@@ -88,6 +88,12 @@ extern struct partition_desc hdpart_desc[];
 /* this is the cur selected partition. */
 extern struct partition_desc *cursel_partition;
 
+/* direct hd operation interface */
+#define HDPART_HD0_WHOLE      (0xF0)
+#define HDPART_HD1_WHOLE      (0xF1)
+
+device_t *gethd_dev(u8 part);
+
 #endif
 
 

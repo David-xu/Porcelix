@@ -3,34 +3,10 @@
 #include "hd.h"
 #include "command.h"
 #include "debug.h"
+#include "memory.h"
+#include "module.h"
 
 unsigned    n_supportfs;             /* num of fs we suppored */
-
-void fs_init(void)
-{
-    struct file_system *fs;
-    unsigned i;
-    n_supportfs = (GET_SYMBOLVALUE(fsdesc_array_end) - (unsigned)fsdesc_array) / sizeof(struct file_system);
-    DEBUG("n_supportfs: %d\n", n_supportfs);
-    /* install all fs */
-    for (i = 0; i < n_supportfs; i++)
-    {
-        fs = &(fsdesc_array[i]);
-        fs->regflag = 0;
-        if ((fs->fs_mount == NULL) ||
-            (fs->fs_unmount == NULL) ||
-            (fs->fs_register == NULL))
-        {
-            continue;
-        }
-
-        if (fs->fs_register(fs, NULL) == 0)
-        {
-            /* file system registed success. */
-            fs->regflag = 1;
-        }
-    }
-}
 
 static u8 file_attrib[8][4] = {{"---\0"},         /* 0x0 */
                                {"--x\0"},         /* 0x1 */
@@ -41,7 +17,7 @@ static u8 file_attrib[8][4] = {{"---\0"},         /* 0x0 */
                                {"rw-\0"},         /* 0x6 */
                                {"rwx\0"}};        /* 0x7 */
 
-static void cmd_ls_opfunc(u8 *argv[], u8 argc, void *param)
+static void cmd_ls_opfunc(char *argv[], int argc, void *param)
 {
     if (cursel_partition == NULL)
     {
@@ -52,7 +28,7 @@ static void cmd_ls_opfunc(u8 *argv[], u8 argc, void *param)
         return;
 
     /* print all entrys */
-    stat_dentry_array_t *stat_dentry = (stat_dentry_array_t *)get_phyaddr(dentry_bufpage);
+    stat_dentry_array_t *stat_dentry = (stat_dentry_array_t *)page2phyaddr(dentry_bufpage);
     u32 idx;
     for (idx = 0; idx < (stat_dentry->n_dentry); idx++)
     {
@@ -81,7 +57,7 @@ static void cmd_ls_opfunc(u8 *argv[], u8 argc, void *param)
     page_free(dentry_bufpage);
 }
 
-static void cmd_cd_opfunc(u8 *argv[], u8 argc, void *param)
+static void cmd_cd_opfunc(char *argv[], int argc, void *param)
 {
     if (cursel_partition == NULL)
     {
@@ -107,4 +83,33 @@ struct command cmd_cd _SECTION_(.array.cmd) =
     .info       = "Change current directory.",
     .op_func    = cmd_cd_opfunc,
 };
+
+/* build the file system, try to load the main fs */
+static void __init fs_init(void)
+{
+    struct file_system *fs;
+    unsigned i;
+    n_supportfs = (GET_SYMBOLVALUE(fsdesc_array_end) - (unsigned)fsdesc_array) / sizeof(struct file_system);
+    DEBUG("n_supportfs: %d\n", n_supportfs);
+    /* install all fs */
+    for (i = 0; i < n_supportfs; i++)
+    {
+        fs = &(fsdesc_array[i]);
+        fs->regflag = 0;
+        if ((fs->fs_mount == NULL) ||
+            (fs->fs_unmount == NULL) ||
+            (fs->fs_register == NULL))
+        {
+            continue;
+        }
+
+        if (fs->fs_register(fs, NULL) == 0)
+        {
+            /* file system registed success. */
+            fs->regflag = 1;
+        }
+    }
+}
+
+module_init(fs_init, 2);
 

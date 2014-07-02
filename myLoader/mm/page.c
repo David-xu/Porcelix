@@ -4,16 +4,17 @@
 #include "memory.h"
 #include "list.h"
 #include "debug.h"
+#include "spinlock.h"
 
-const u8 *range_name[BUDDY_RANKNUM] = {"BUDDY_RANK_4K",
-                                       "BUDDY_RANK_8K",
-                                       "BUDDY_RANK_16K",
-                                       "BUDDY_RANK_32K",
-                                       "BUDDY_RANK_64K",
-                                       "BUDDY_RANK_128K",
-                                       "BUDDY_RANK_256K",
-                                       "BUDDY_RANK_512K",
-                                       "BUDDY_RANK_1024K"};
+const char *range_name[BUDDY_RANKNUM] = {"BUDDY_RANK_4K",
+                                         "BUDDY_RANK_8K",
+                                         "BUDDY_RANK_16K",
+                                         "BUDDY_RANK_32K",
+                                         "BUDDY_RANK_64K",
+                                         "BUDDY_RANK_128K",
+                                         "BUDDY_RANK_256K",
+                                         "BUDDY_RANK_512K",
+                                         "BUDDY_RANK_1024K"};
 
 /*  */
 struct page *pagelist = NULL;
@@ -26,11 +27,28 @@ struct list_head    fpage_list[BUDDY_RANKNUM];
 /* get the page phy addr by struct page *point */
 #define GET_PHYADDR(page)       (GET_FREEPAGE_IDX(page) * PAGE_SIZE)
 
-void *get_phyaddr(struct page *page)
+void *page2phyaddr(struct page *page)
 {
     return (void *)GET_PHYADDR(page);
 }
 
+struct page *phyaddr2page(void *phy)
+{
+    return (pagelist + (((u32)phy) >> PAGESIZE_SHIFT));
+}
+
+/*
+static void print_sp(void)
+{
+    u32 sp = 0;
+    __asm__ __volatile__(
+    "movl   %%esp, %%eax    \n\t"
+    "movl   %%eax, %0       \n\t"
+    :"=r"(sp)
+    );
+    printf("sp:0x%#8x\n", sp);
+}
+*/
 
 void buddy_init(void)
 {
@@ -58,6 +76,7 @@ void buddy_init(void)
         (pagelist + i)->buddy_rank = BUDDY_RANKNUM - 1;
         list_add_tail(&((pagelist + i)->freepage), &(fpage_list[BUDDY_RANKNUM - 1]));
     }
+
     /* we locate the RAM space */
     /* 0. system space, all pages we alloc will not used this space */
     page_alloc(BUDDY_RANK_512K);
@@ -68,7 +87,6 @@ void buddy_init(void)
     /* 2. sys page list space */
     for (i = EXTENT_RAM_ADDR; i < freepage_start;)
     {
-        
         struct page *tmp;
         if ((freepage_start - i) > 1024 * 1024)
         {
@@ -81,6 +99,7 @@ void buddy_init(void)
             tmp = page_alloc(mosthigh - PAGESIZE_SHIFT);
             i += 0x1 << mosthigh;
         }
+        (void)tmp;      // make the compiler happy
     }
 }
 
@@ -96,25 +115,32 @@ void buddy_init(void)
  */
 struct page *page_alloc(u32 rank)
 {
-    unsigned i = rank, pageidx;
+    u32 flags;
+    unsigned i = rank;
     struct page *newpage = NULL;
 
+    DEBUG("page_alloc begin, need rank:%d.\n", rank);
     /* search one free page */
     for (i = rank; i < BUDDY_RANKNUM; i++)
     {
         if (!CHECK_LIST_EMPTY(&(fpage_list[i])))
             break;
     }
+
     /**/
-    if (i == BUDDY_RANKNUM)
+    if (i >= BUDDY_RANKNUM)
     {
+        DEBUG("Current i:0x%#8x.\n", i);
         DEBUG("page_alloc rank %s failed, no enough RAM.\n", range_name[rank]);
         return NULL;
     }
-        
+
     /* when we found unempty free list, we get one node and remove it
        out of it's freelist */
+    DEBUG("Get freepage list, rank:%d.\n", i);
+    raw_local_irq_save(flags);
     struct list_head *p = list_remove_head(&(fpage_list[i]));
+
     newpage = GET_CONTAINER(p, struct page, freepage);
     
     /* if the newpage's rank bigger then request, we need to split it
@@ -129,19 +155,25 @@ struct page *page_alloc(u32 rank)
         buddypage->buddy_rank = newpage->buddy_rank;
 
         /* insert the buddy into freelist */
-        list_add_head(&(buddypage->freepage), &(fpage_list[buddypage->buddy_rank]));
+        list_add_head(&(buddypage->freepage), &(fpage_list[buddypage->buddy_rank]));        
     }
+
+    raw_local_irq_restore(flags);
 
     /* finally we get what we want. */
     DEBUG("page_alloc rank %s success.\n", range_name[newpage->buddy_rank]);
+
     return newpage;
 }
 
 void page_free(struct page *freepage)
 {
+    u32 flags;
     ASSERT(freepage->buddy_rank < BUDDY_RANKNUM);
     /* the page should not in the free page list. */
     ASSERT(CHECK_NODE_OUTOFLIST(&(freepage->freepage)));
+
+    raw_local_irq_save(flags);
 
     while (freepage->buddy_rank < (BUDDY_RANKNUM - 1))
     {
@@ -166,6 +198,7 @@ void page_free(struct page *freepage)
 
     /* insert it into freelist */
     list_add_head(&(freepage->freepage), &(fpage_list[freepage->buddy_rank]));
+    raw_local_irq_restore(flags);
 }
 
 /* freepage_dump()

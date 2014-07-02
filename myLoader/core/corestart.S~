@@ -7,27 +7,29 @@
 .section .init.start
 .code16
 
-/* get some info by BIOS */
+/* step 1: get some info from boot.bin, the first 512B */
 
 /* read the hd partition table, then store it in global var hd0_pdt */
-.global hdpdt
+.global bootparam
 /* ds:si -> es:di */
-movw	$HD_PDTADDR_BASS, %ax
+movw	$BOOTPARAM_PACKADDR_BASS, %ax
 movw	%ax, %ds
-movw	$HD_PDTADDR_OFFSET, %si
+movw	$BOOTPARAM_PACKADDR_OFFSET, %si
 movw	$(IMGCORE_LOADADDR_BASE + IMGCORE_LOADADDR_OFFSET >> 4), %ax	/* prepare es and di */
 movw	%ax, %es
-movw	$hdpdt, %di
-movw	$32, %cx
+movw	$bootparam, %di
+movw	$(BOOTPARAM_PACKADDR_LEN >> 1), %cx
 rep		movsw
+
+/* step 2: get some info by BIOS */
 
 /* read the harddisc information, then store it in global var hd0_info */
 .global hd0_info
-/* load the 0000:0106 ---> ds, 0000:0104 ---> si */
+/* load the word in 0000:0106 to ds, load the word in 0000:0104 to si */
 /* ds:si -> es:di */
-movw	$HD_INFOADDR_ENTRYADDR_BASE, %ax
+movw	$HD0_INFOADDR_ENTRYADDR_BASE, %ax
 movw	%ax, %ds
-movw	$HD_INFOADDR_ENTRYADDR_OFFSET, %di
+movw	$HD0_INFOADDR_ENTRYADDR_OFFSET, %di
 movw	2(%di), %ax		/* ---> ds */
 movw	(%di), %bx		/* ---> si*/
 movw	%ax, %ds
@@ -38,13 +40,29 @@ movw	$hd0_info, %di
 movw	$8, %cx
 rep		movsw
 
+/* read the harddisc information, then store it in global var hd1_info */
+.global hd1_info
+/* load the word in 0000:011a to ds, load the word in 0000:0118 to si */
+/* ds:si -> es:di */
+movw	$HD1_INFOADDR_ENTRYADDR_BASE, %ax
+movw	%ax, %ds
+movw	$HD1_INFOADDR_ENTRYADDR_OFFSET, %di
+movw	2(%di), %ax		/* ---> ds */
+movw	(%di), %bx		/* ---> si*/
+movw	%ax, %ds
+movw	%bx, %si
+movw	$(IMGCORE_LOADADDR_BASE + IMGCORE_LOADADDR_OFFSET >> 4), %ax	/* prepare es and di */
+movw	%ax, %es
+movw	$hd0_info, %di
+movw	$8, %cx
+rep		movsw
+
+
 /* get the System RAM information */
 .global raminfo_buf
 movw	$(IMGCORE_LOADADDR_BASE + IMGCORE_LOADADDR_OFFSET >> 4), %ax	/* prepare es and di */
-movw	%ax, %es
 movw	%ax, %ds
 movw	$raminfo_buf, %di
-
 /* int 15 ax:0xE820, get the ram info and store in the es:di */
 movw	$0, %bx
 movw	$0xE801, %ax
@@ -58,10 +76,10 @@ movw	%dx, 6(%di)
 
 
 
-
 /******************************************************************************
- * now we prepare to mov the whole system to zero address and runnnnnnnn.....  *
- *                                                                            *
+ * now we prepare to mov the whole system to zero address and runnnnnnnn..... *
+ * caution: now we are in the mode of bit16, so the size of the core.img      *
+ *          should be less the 64K * 2                                        *
  ******************************************************************************/
 /* mov myself to 0:0 */
 movw	$IMGCORE_SIZE_WORD, %cx

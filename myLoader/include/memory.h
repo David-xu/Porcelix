@@ -17,7 +17,7 @@ DEFINE_SYMBOL(symbol_inittext_end);
 
 /* we need to call BIOS INT to get some RAM info */
 #define RAMINFO_MAXLEN              (0x10)
-extern u8 raminfo_buf[RAMINFO_MAXLEN];
+extern u16 raminfo_buf[RAMINFO_MAXLEN];
 extern u32 ram_size;    /* this is the whole RAM size, we get it by BIOS INT */
 
 enum BUDDY_RANK{
@@ -42,13 +42,13 @@ struct page{
 };
 
 /* we start up the free page buddy system. */
-void mem_init(void) _SECTION_(.init.text);
 void buddy_init(void) _SECTION_(.init.text);
 
 /*  */
 struct page *page_alloc(u32 rank);
 void page_free(struct page *freepage);
-void *get_phyaddr(struct page *page);
+void *page2phyaddr(struct page *page);
+struct page *phyaddr2page(void *phy);
 
 /* this is debug function. */
 u32 freepage_dump(int detail);

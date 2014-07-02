@@ -64,3 +64,30 @@ hd_int_entrance:
 	popl	%eax
 	iret
 
+.global int10_public_entrance
+.global int10_public
+int10_public_entrance:
+	pushl	%eax
+	pushl	%ebx
+	pushl	%ecx
+	pushl	%edx
+	push	%ds
+	push	%es
+
+
+	call int10_public
+
+	/* send EOI to 8259A slaver */
+	movb	$0x20, %al
+	outb	%al, $0xA0
+	/* send EOI to 8259A master */
+	movb	$0x20, %al
+	outb	%al, $0x20
+
+	pop		%es
+	pop		%ds
+	popl	%edx
+	popl	%ecx
+	popl	%ebx
+	popl	%eax
+	iret

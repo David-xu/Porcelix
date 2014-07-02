@@ -6,19 +6,21 @@
 #include "list.h"
 
 
-struct command{
-    u8 *cmd_name, *info;
+struct command {
+    char *cmd_name, *info;
     void *param;
     
-    void (*op_func)(u8 *argv[], u8 argc, void *param);
+    void (*op_func)(char *argv[], int argc, void *param);
 };
 
-void cmdlist_init(void) _SECTION_(.init.text);
+void cmd_loop(void);
+
 
 /*  */
-extern struct command cmddesc_array[];
 extern unsigned n_command;
+DEFINE_SYMBOL(cmddesc_array);
 DEFINE_SYMBOL(cmddesc_array_end);
+
 
 
 #endif

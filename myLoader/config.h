@@ -15,15 +15,22 @@
 #define	IMGCORE_LOADADDR_OFFSET     (0x8000)        /* offset */
 #define IMGCORE_LOADADDR_BASE		(0x2000)        /* ds */
 #define IMGCORE_LOADADDR			((IMGCORE_LOADADDR_BASE << 16) + IMGCORE_LOADADDR_OFFSET)
-/* sector number of the core */
-#define SECTORNUM_CORESIZE          (255)
+/* int 0x13 al=0x42
+   max sector number:007Fh   for   Phoenix   EDD */
+#define SECTORNUM_CORESIZE          (127)
 /* coresize */
 #define IMGCORE_SIZE_WORD           (HD_SECTOR_SIZE * SECTORNUM_CORESIZE / 2)
 /* hd pdt and hd info position */
-#define HD_INFOADDR_ENTRYADDR_BASE      (0x0000)
-#define HD_INFOADDR_ENTRYADDR_OFFSET    (0x0104)
-#define HD_PDTADDR_BASS                 (0x07C0)
-#define HD_PDTADDR_OFFSET               (0x01BE)
+#define HD0_INFOADDR_ENTRYADDR_BASE      (0x0000)
+#define HD0_INFOADDR_ENTRYADDR_OFFSET    (0x0104)
+#define HD1_INFOADDR_ENTRYADDR_BASE      (0x0000)
+#define HD1_INFOADDR_ENTRYADDR_OFFSET    (0x0118)
+
+
+//
+#define BOOTPARAM_PACKADDR_BASS         (0x07C0)
+#define BOOTPARAM_PACKADDR_OFFSET       (0x01A0)
+#define BOOTPARAM_PACKADDR_LEN          (0x60)
 
 
 
@@ -39,6 +46,11 @@
 #define CONFIG_DBG_SWITCH           (0)
 
 /******************************************************************************
+ *                           Used for HD driver                               *
+ ******************************************************************************/
+#define HDDRV_DBG_SWITCH            (0)
+
+/******************************************************************************
  *                           Used for MM                                      *
  ******************************************************************************/
 #define MM_HOLEAFTEL_SYSRAM         (2048)
@@ -47,6 +59,16 @@
  *                           Used for FS                                      *
  ******************************************************************************/
 #define CONFIG_FSDEBUG_DUMP         (0)
+
+/******************************************************************************
+ *                           Used for net                                     *
+ ******************************************************************************/
+#define CONFIG_UDPCLI_DEFAULTPORT   (7788)
+#define CONFIG_UDPCLI_HELLO_REQ     "hello"
+#define CONFIG_UDPCLI_HELLO_ACK     "i'm myloader."
+#define CONFIG_UDPCLI_BYE_REQ       "bye"
+#define CONFIG_UDPCLI_BYE_ACK       "bye"
+
 
 #endif
 

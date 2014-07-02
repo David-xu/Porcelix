@@ -5,6 +5,7 @@
 #include "desc.h"
 #include "section.h"
 #include "command.h"
+#include "module.h"
 
 /* kbd controller port */
 #define PORT_KBD_CMD                (0x60)
@@ -80,6 +81,38 @@ static u8 kbd_shiftdown_map[] =
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
+/* read until the 8042's buff get empty
+   I just copy the code from the linux kernel :) */
+#define MAX_8042_LOOPS	100000
+#define MAX_8042_FF	32
+static int empty_8042(void)
+{
+	u8 status;
+	int loops = MAX_8042_LOOPS;
+	int ffs   = MAX_8042_FF;
+
+	while (loops--) {
+		io_delay();
+
+		status = inb(PORT_KBD_CONTROL_CMD);
+		if (status == 0xff) {
+			/* FF is a plausible, but very unlikely status */
+			if (!--ffs)
+				return -1; /* Assume no KBC present */
+		}
+		if (status & 1) {
+			/* Read and discard input data */
+			io_delay();
+			(void)inb(PORT_KBD_CMD);
+		} else if (!(status & 2)) {
+			/* Buffers empty, finished! */
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
 
 #define KBD_RAWINPUTBUFF_SIZE   (256)
 
@@ -122,41 +155,19 @@ int kbd_get_char()
 u8 kbdctrl_outport_r(void)
 {
     outb(KBDCTRL_CMD_OUTPORT_R, PORT_KBD_CONTROL_CMD);
-    u8 kbd_cmd = inb(PORT_KBD_CMD);
+    io_delay();
+    return inb(PORT_KBD_CMD);
 }
 
 void kbdctrl_outport_w(u8 cmd)
 {
+	empty_8042();
+
     outb(KBDCTRL_CMD_OUTPORT_W, PORT_KBD_CONTROL_CMD);
+
+	empty_8042();
+
     outb(cmd, PORT_KBD_CMD);
-}
-
-
-void kbd_init(void)
-{
-    u8 intmask;
-
-    kbd_rawinput_buff.readpos = kbd_rawinput_buff.writepos = 0;
-    
-    _cli();
-    
-    /* OCW1, set 8259A master INTMASK reg */
-    intmask = inb(PORT_8259A_MASTER_A1);    /* the INTMAST reg is the 0x21 and 0xA1 */
-    outb(intmask & (~0x02), PORT_8259A_MASTER_A1);
-
-    set_idt(X86_VECTOR_IRQ_21, kbd_int_entrance);       /* keyboard interrupt */
-
-    _sti();
-
-    printf("kbd status: 0x%#2x\n", inb(PORT_KBD_CONTROL_CMD));
-
-    /* we need to turn on the A20 in some hardware. */
-    u8 outport_cmd = kbdctrl_outport_r();
-    if ((outport_cmd & 0x02) == 0)
-    {
-        kbdctrl_outport_w(outport_cmd | 0x02);
-        printf("Just turn on the A20.\n");
-    }
 }
 
 void kbd_int(void)
@@ -227,7 +238,7 @@ void kbd_int(void)
     }
 }
 
-static void cmd_reboot_opfunc(u8 *argv[], u8 argc, void *param)
+static void cmd_reboot_opfunc(char *argv[], int argc, void *param)
 {
     u8 outport_cmd = kbdctrl_outport_r();
     printf("Now rebooting the system...\n");
@@ -240,4 +251,24 @@ struct command cmd_reboot _SECTION_(.array.cmd) =
     .info       = "Reboot the system.",
     .op_func    = cmd_reboot_opfunc,
 };
+
+static void __init kbd_init(void)
+{
+    u8 intmask;
+
+    kbd_rawinput_buff.readpos = kbd_rawinput_buff.writepos = 0;
+    
+    _cli();
+    
+    /* OCW1, set 8259A master INTMASK reg */
+    intmask = inb(PORT_8259A_MASTER_A1);    /* the INTMAST reg is the 0x21 and 0xA1 */
+    outb(intmask & (~0x02), PORT_8259A_MASTER_A1);
+
+    set_idt(X86_VECTOR_IRQ_21, kbd_int_entrance);       /* keyboard interrupt */
+
+    _sti();
+}
+
+module_init(kbd_init, 2);
+
 

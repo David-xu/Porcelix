@@ -61,7 +61,7 @@ typedef struct _inode{
 }inode_t;
 
 typedef struct _dentry{
-    u8 name[FS_FILENAME_LEN];
+    char name[FS_FILENAME_LEN];
     u32 inode_idx;              /* this is the dir inode index */
     inode_t inode;              /* this is the dir inode buffer */
 }dentry_t;
@@ -76,21 +76,21 @@ typedef struct _stat_dentry_array{
 struct file_system{
     u32 regflag         : 1;        /* this flag indicate the fs can be used. */
     u32 rsvflag         : 31;
-    u8  *name;
+    char *name;
 
     int (*fs_register)(struct file_system *fs, void *param);
     int (*fs_mount)(struct file_system *fs, void *param);
     int (*fs_unmount)(struct file_system *fs, void *param);
 
     int (*fs_getinode)(struct file_system *fs, void *param, inode_t *inode, u32 inode_idx);
-    u8* (*fs_getcurdir)(struct file_system *fs, void *param);
-    int (*fs_changecurdir)(struct file_system *fs, void *param, u8 *dirname);
+    char* (*fs_getcurdir)(struct file_system *fs, void *param);
+    int (*fs_changecurdir)(struct file_system *fs, void *param, char *dirname);
     struct page* (*fs_stat)(struct file_system *fs, void *param);
 
     u32 pad[7];
 };
 
-void fs_init(void) _SECTION_(.init.text);
+// void fs_init(void) _SECTION_(.init.text);
 
 /*  */
 extern unsigned    n_supportfs;             /* num of fs we suppored */

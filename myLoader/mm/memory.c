@@ -4,9 +4,10 @@
 #include "assert.h"
 #include "command.h"
 #include "debug.h"
-#include "string.h"
+#include "ml_string.h"
+#include "module.h"
 
-static void cmd_ramdisp_opfunc(u8 *argv[], u8 argc, void *param)
+static void cmd_ramdisp_opfunc(char *argv[], int argc, void *param)
 {
     static void *dispaddr = NULL;
     static u32 len = 1;
@@ -39,6 +40,85 @@ struct command cmd_ramdisp _SECTION_(.array.cmd) =
     .op_func    = cmd_ramdisp_opfunc,
 };
 
+static void cmd_iorw_opfunc(char *argv[], int argc, void *param)
+{
+    u32 addr, val;
+    if ((argc < 3) || (argc > 4))
+    {
+        goto invalidparam;
+    }
+    else if (argc == 3)
+    {
+        if (memcmp("-rb", argv[1], sizeof("-rb")) == 0)
+        {
+            addr = str2num(argv[2]);
+            val = inb((u16)addr);
+            printf("Read byte from I/O 0x%#4x:0x%#2x.\n", (u16)addr, (u8)val);
+        }
+        else if (memcmp("-rw", argv[1], sizeof("-rw")) == 0)
+        {
+            addr = str2num(argv[2]);
+            val = inw((u16)addr);
+            printf("Read word from I/O 0x%#4x:0x%#4x.\n", (u16)addr, (u16)val);
+        }
+        else if (memcmp("-rl", argv[1], sizeof("-rl")) == 0)
+        {
+            addr = str2num(argv[2]);
+            val = inl((u16)addr);
+            printf("Read long from I/O 0x%#4x:0x%#8x.\n", (u16)addr, val);
+        }
+        else
+        {
+            goto invalidparam;
+        }
+    }
+    else if (argc == 4)
+    {
+        if (memcmp("-wb", argv[1], sizeof("-wb")) == 0)
+        {
+            addr = str2num(argv[2]);
+            val = str2num(argv[3]);
+
+            outb((u8)val, (u16)addr);
+        }
+        else if (memcmp("-ww", argv[1], sizeof("-ww")) == 0)
+        {
+            addr = str2num(argv[2]);
+            val = str2num(argv[3]);
+
+            outw((u16)val, (u16)addr);
+        }
+        else if (memcmp("-wl", argv[1], sizeof("-wl")) == 0)
+        {
+            addr = str2num(argv[2]);
+            val = str2num(argv[3]);
+
+            outl(val, (u16)addr);
+        }
+        else
+        {
+            goto invalidparam;
+        }
+
+    }
+    else
+    {
+        goto invalidparam;
+    }
+    return;
+
+invalidparam:
+    printf("-r[b][w][l] [addr]      : Read I/O value from addr.\n"
+           "-w[b][w][l] [addr] [val]: write I/O value to addr.\n");
+}
+
+struct command cmd_iorw _SECTION_(.array.cmd) =
+{
+    .cmd_name   = "iorw",
+    .info       = "I/O Read Write.-r [addr], -w [addr] [val]",
+    .op_func    = cmd_iorw_opfunc,
+};
+
 
 /*
  we call the int 0x15 (ax = 0xE801), get some ram info
@@ -67,9 +147,33 @@ Notes:	supported by the A03 level (6/14/94) and later XPS P90 BIOSes, as well
 struct raminfo{
     u16     ax, bx, cx, dx;
 };
-u8 raminfo_buf[RAMINFO_MAXLEN];
+u16 raminfo_buf[RAMINFO_MAXLEN];
 
 u32 ram_size;           /* we call the bios to get this param. */
+
+static void a20enable_test(void) _SECTION_(.init.text);
+static void a20enable_test(void)
+{
+    u32 *p1 = (u32 *)0x100000, *p2 = (u32 *)0x0, v1, v2;
+    v1 = *p1;
+    v2 = *p2;
+    DEBUG("addr 0x%#8x ---> 0x%#8x, addr 0x%#8x ---> 0x%#8x.\n",
+           (u32)p1, v1,
+           (u32)p2, v2);
+    *p1 = 0x5500ffaa;
+
+    v1 = *p1;
+    v2 = *p2;
+    DEBUG("addr 0x%#8x ---> 0x%#8x, addr 0x%#8x ---> 0x%#8x.\n",
+           (u32)p1, v1,
+           (u32)p2, v2);
+    if (v1 == v2)
+    {
+        printf("a20 test faild.\nDead...");
+        while (1);
+    }
+    printf("a20 test success.\n");
+}
 
 
 /******************************************************************************
@@ -79,8 +183,19 @@ u32 ram_size;           /* we call the bios to get this param. */
  *  (2). value of symbol_sys_end
  *  
  ******************************************************************************/
-void mem_init(void)
+static void __init mem_init(void) 
 {
+    /* we need to turn on the A20 in some hardware. */
+    u8 outport_cmd = kbdctrl_outport_r();
+    if ((outport_cmd & 0x02) == 0)
+    {
+        kbdctrl_outport_w(outport_cmd | 0x02);
+        printf("Just turn on the A20.\n");
+    }
+
+    a20enable_test();
+
+
     /* system ram space + extend ram space */
     ram_size = 1024 * 1024 + 
                ((struct raminfo *)raminfo_buf)->ax * 1024 + 
@@ -104,6 +219,9 @@ void mem_init(void)
     printf("The section '.init.text' end position: %#8x.\n", GET_SYMBOLVALUE(symbol_inittext_end));
     printf("System end position: %#8x, Total size: %dK\n", GET_SYMBOLVALUE(symbol_sys_end), GET_SYMBOLVALUE(symbol_sys_end) / 1024);
 
+    /* build the free page buddy system. */
     buddy_init();
 }
+
+module_init(mem_init, 0);
 
