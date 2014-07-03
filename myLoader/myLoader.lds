@@ -10,7 +10,7 @@ SECTIONS
 	}
 	.bss :
 	{
-		
+		*(.bss)
 	}
 	.data :
 	{

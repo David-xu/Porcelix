@@ -2,7 +2,7 @@
 #include "typedef.h"
 #include "net.h"
 #include "module.h"
-#include "string.h"
+#include "ml_string.h"
 #include "command.h"
 #include "udpcli.h"
 #include "device.h"
