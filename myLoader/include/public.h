@@ -49,5 +49,17 @@ static inline int get_high_bit(u32 v)
     return -1;
 }
 
+/* some x86 special operations. */
+typedef union _regbuf {
+    struct {
+        u32 eax, ebx, ecx, edx;
+    } reg;
+    u32 buf[8];
+} regbuf_u;
+
+void x86_rdmsr(regbuf_u *regbuf);
+void x86_wrmsr(regbuf_u *regbuf);
+
+
 #endif
 

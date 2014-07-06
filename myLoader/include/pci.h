@@ -12,17 +12,23 @@
 
 #define PCI_FUNC_OFFSET                 (PCI_REGIDX_OFFSET + PCI_REGIDX_WIDTH)
 #define PCI_FUNC_WIDTH                  (3)
-#define PCI_FUNC_MAXIDX                 (PUBLIC_GETMASK(PCI_FUNC_WIDTH))
+#define PCI_FUNC_COUNT                  (0x1 << PCI_FUNC_WIDTH)
 
 #define PCI_DEV_OFFSET                  (PCI_FUNC_OFFSET + PCI_FUNC_WIDTH)
 #define PCI_DEV_WIDTH                   (5)
-#define PCI_DEV_MAXIDX                  (PUBLIC_GETMASK(PCI_DEV_WIDTH))
+#define PCI_DEV_COUNT                   (0x1 << PCI_DEV_WIDTH)
 
 #define PCI_BUS_OFFSET                  (PCI_DEV_OFFSET + PCI_DEV_WIDTH)
 #define PCI_BUS_WIDTH                   (8)
-#define PCI_BUS_MAXIDX                  (PUBLIC_GETMASK(PCI_BUS_WIDTH))
+#define PCI_BUS_COUNT                   (0x1 << PCI_BUS_WIDTH)
 
-#define PCI_CFG_BAR0_OFFSET             (4 << 2)
+#define PCI_CFG_BAR0_OFFSET             (0x10)
+#define PCI_CFG_BAR1_OFFSET             (0x14)
+#define PCI_CFG_BAR2_OFFSET             (0x18)
+#define PCI_CFG_BAR3_OFFSET             (0x20)
+#define PCI_CFG_BAR4_OFFSET             (0x24)
+#define PCI_CFG_BAR5_OFFSET             (0x28)
+
 
 #define PCI_INVALID_VENDORID            (0xFFFF)
 

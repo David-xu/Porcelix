@@ -22,9 +22,9 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
     {
         printf("PCI bus enumeration begin...\n");
         
-        for (bus = 0; bus < PCI_BUS_MAXIDX; bus++)
-            for (dev = 0; dev < PCI_DEV_MAXIDX; dev++)
-                for (func = 0; func < PCI_FUNC_MAXIDX; func++)
+        for (bus = 0; bus < PCI_BUS_COUNT; bus++)
+            for (dev = 0; dev < PCI_DEV_COUNT; dev++)
+                for (func = 0; func < PCI_FUNC_COUNT; func++)
                 {
                     getpciinfo(bus, dev, func, &pcicfg);
                     
@@ -41,8 +41,8 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
     {
         bus = str2num(argv[2]);
         count = 0;
-        for (dev = 0; dev < PCI_DEV_MAXIDX; dev++)
-            for (func = 0; func < PCI_FUNC_MAXIDX; func++)
+        for (dev = 0; dev < PCI_DEV_COUNT; dev++)
+            for (func = 0; func < PCI_FUNC_COUNT; func++)
             {
                 getpciinfo(bus, dev, func, &pcicfg);
             
@@ -167,6 +167,7 @@ void getpciinfo(u32 bus, u32 dev, u32 func, pcicfgdata_t *pcicfg)
     cfgword = PCI_MAKE_CFGWORD(bus, dev, func);
     cfgword += PCI_CFG_BAR0_OFFSET;
 
+    /* write the 0xffffffff to bar and read, after that we can get the bar_mask */
     for (count = 0; count < ARRAY_ELEMENT_SIZE(pcicfg->u.cfg.baseaddr); count++)
     {
         outl(cfgword, PCI_CONFIG_ADDRESS);
@@ -192,9 +193,9 @@ void pci_init(void)
     pci_dev_t *pcinewdev;
 
     /* enum all the pci device, find fit driver for each */
-    for (bus = 0; bus < PCI_BUS_MAXIDX; bus++)
-        for (dev = 0; dev < PCI_DEV_MAXIDX; dev++)
-            for (func = 0; func < PCI_FUNC_MAXIDX; func++)
+    for (bus = 0; bus < PCI_BUS_COUNT; bus++)
+        for (dev = 0; dev < PCI_DEV_COUNT; dev++)
+            for (func = 0; func < PCI_FUNC_COUNT; func++)
             {
                 getpciinfo(bus, dev, func, &pcicfg);
                 if (pcicfg.u.cfg.vendor == PCI_INVALID_VENDORID)

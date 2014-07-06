@@ -115,7 +115,7 @@ static inline void segdesc_disp(struct segdesc *desc)
 
 /******************************************************************************/
 /******************************************************************************/
-static inline void set_idt(enum X86_VECTORTYPE type, void *addr)
+static inline void set_idt(u8 vect, void *addr)
 {
     struct idtdesc idt;
 
@@ -128,7 +128,7 @@ static inline void set_idt(enum X86_VECTORTYPE type, void *addr)
     idt.s = 0;
     idt.desc = SYSDESC_CODE;
 
-    memcpy((u8 *)&(idt_table[type]), (u8 *)&idt, sizeof(idt));
+    memcpy((u8 *)&(idt_table[vect]), (u8 *)&idt, sizeof(idt));
 }
 
 #endif

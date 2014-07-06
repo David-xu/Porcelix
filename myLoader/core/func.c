@@ -1,5 +1,7 @@
 #include "config.h"
 #include "typedef.h"
+#include "public.h"
+
 
 void memcpy(void *dst, void *src, u16 len)
 {
@@ -134,5 +136,21 @@ int parse_str_by_inteflag(char *str, char *argv[], u8 n_inteflag, char *inteflag
     }
 
     return argc;
+}
+
+/* some x86 special operation. */
+void x86_rdmsr(regbuf_u *regbuf)
+{
+    asm volatile("rdmsr         \n\t"
+                 :"=d"(regbuf->reg.edx), "=a"(regbuf->reg.eax)
+                 :"c"(regbuf->reg.ecx));
+}
+
+void x86_wrmsr(regbuf_u *regbuf)
+{
+    asm volatile("wrmsr         \n\t"
+                 :
+                 :"d"(regbuf->reg.edx), "a"(regbuf->reg.eax), "c"(regbuf->reg.ecx));
+
 }
 

@@ -14,8 +14,12 @@ unsigned n_command = 0;
 
 static void cmd_test_opfunc(char *argv[], int argc, void *param)
 {
-    /* show the left ram space */
-    freepage_dump(TRUE);
+    /* rdmsr */
+    regbuf_u regbuf;
+    regbuf.reg.ecx = 0x1b;
+    x86_rdmsr(&regbuf);
+
+    printf("edx:0x%#8x, eax:0x%#8x\n", regbuf.reg.edx, regbuf.reg.eax);
 }
 
 struct command cmd_test _SECTION_(.array.cmd) =

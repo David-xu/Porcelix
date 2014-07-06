@@ -45,8 +45,6 @@ static inline u32 inl(u16 port)
 	return v;
 }
 
-
-
 struct console{
     char *name;
     void (*init)(struct console *con);

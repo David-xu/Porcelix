@@ -114,7 +114,12 @@ udpcli_sendandwait_retry:
     return 0;
 }
 
-/**/
+/*
+ * argv[0]: "sendfile"
+ * argv[1]: "hd0" "hd1"
+ * argv[2]: filename
+ * argv[3]: 
+ */
 static int updcli_sendfile(int sock, int argc, char *argv[])
 {
     u32 crc;
@@ -197,6 +202,12 @@ int main(int argc, char *argv[])
     struct sockaddr_in serveraddr;
     memset(&serveraddr, 0, sizeof(serveraddr));
     serveraddr.sin_family = AF_INET;
+
+    if (argc != 6)
+    {
+        printf("invalid param count. exit.\n");
+        exit(0);
+    }
 
     /* get and config the server ip:port */
     if (inet_pton(AF_INET, argv[1], &serveraddr.sin_addr) <= 0)
