@@ -1,0 +1,562 @@
+
+Allocating common symbols
+Common symbol       size              file
+
+raminfo_buf         0x20              mm/memory.o
+kbd_rawinput_buff   0x104             io/kbd.o
+fpage_list          0x48              mm/page.o
+hd0_info            0x10              io/hd.o
+ram_size            0x4               mm/memory.o
+n_supportfs         0x4               fs/fs.o
+hd0_pdt             0x40              io/hd.o
+vga_param_s         0x10              io/disp.o
+hd1_info            0x10              io/hd.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+*default*        0x0000000000000000 0xffffffffffffffff
+
+Linker script and memory map
+
+LOAD core/main.o
+LOAD core/cmdlist.o
+LOAD core/module.o
+LOAD core/net.o
+LOAD core/func.o
+LOAD core/task.o
+LOAD drv/pci/core.o
+LOAD drv/pci/eth.o
+LOAD io/disp.o
+LOAD io/interrupt.o
+LOAD io/kbd.o
+LOAD io/hd.o
+LOAD mm/memory.o
+LOAD mm/page.o
+LOAD fs/block.o
+LOAD fs/fs.o
+LOAD fs/ext4.o
+LOAD fs/ext2.o
+LOAD udp_cli/server.o
+LOAD crc32/crc32.o
+LOAD core/corestart.o
+LOAD core/entrance.o
+
+.text           0x0000000000000000     0x4dcc
+ *(.init.start)
+ .init.start    0x0000000000000000       0x95 core/corestart.o
+ *(.init.text)
+ *fill*         0x0000000000000095        0x3 00
+ .init.text     0x0000000000000098       0x13 core/cmdlist.o
+ *fill*         0x00000000000000ab        0x1 00
+ .init.text     0x00000000000000ac       0x61 core/net.o
+ *fill*         0x000000000000010d        0x3 00
+ .init.text     0x0000000000000110       0x30 core/task.o
+ .init.text     0x0000000000000140       0x13 drv/pci/eth.o
+ *fill*         0x0000000000000153        0x1 00
+ .init.text     0x0000000000000154       0x67 io/disp.o
+                0x0000000000000154                disp_init
+ *fill*         0x00000000000001bb        0x1 00
+ .init.text     0x00000000000001bc       0x6a io/interrupt.o
+                0x00000000000001bc                interrupt_init
+ *fill*         0x0000000000000226        0x2 00
+ .init.text     0x0000000000000228       0x60 io/kbd.o
+ .init.text     0x0000000000000288       0x80 io/hd.o
+ .init.text     0x0000000000000308      0x126 mm/memory.o
+ *fill*         0x000000000000042e        0x2 00
+ .init.text     0x0000000000000430      0x159 mm/page.o
+                0x0000000000000430                buddy_init
+ *fill*         0x0000000000000589        0x3 00
+ .init.text     0x000000000000058c       0x77 fs/fs.o
+ *fill*         0x0000000000000603        0x1 00
+ .init.text     0x0000000000000604       0x1d udp_cli/server.o
+                0x0000000000000621                symbol_inittext_end = .
+ *(.text)
+ *fill*         0x0000000000000621        0x3 00
+ .text          0x0000000000000624       0x8c core/main.o
+                0x0000000000000624                getbootparam
+                0x000000000000068c                loader_entry
+ .text          0x00000000000006b0      0x38c core/cmdlist.o
+                0x00000000000006d0                testtask
+                0x0000000000000748                cmd_loop
+ .text          0x0000000000000a3c       0x97 core/module.o
+                0x0000000000000a3c                init_module
+ *fill*         0x0000000000000ad3        0x1 00
+ .text          0x0000000000000ad4      0xbfb core/net.o
+                0x0000000000000ad4                arp_insert
+                0x0000000000000c94                arp_getmacaddr
+                0x0000000000000d68                checksum
+                0x0000000000000de4                ipv4header_dump
+                0x0000000000000ebc                getipv4totallen
+                0x0000000000000ed0                udpheader_dump
+                0x0000000000000f28                getudp_srcport
+                0x0000000000000f3c                getudp_dstport
+                0x0000000000000f50                getudp_len
+                0x0000000000000f64                ipv4_ipswap
+                0x0000000000000f84                ethii_macswap
+                0x0000000000000fa4                do_fbproc
+                0x0000000000001418                rxef_insert
+                0x0000000000001434                sockctx_register
+                0x0000000000001460                udp_send
+ *fill*         0x00000000000016cf        0x1 00
+ .text          0x00000000000016d0      0x23f core/func.o
+                0x00000000000016d0                memcpy
+                0x00000000000016fc                memset
+                0x0000000000001728                memset_u16
+                0x0000000000001758                memcmp
+                0x00000000000017ac                strlen
+                0x00000000000017c4                str2num
+                0x0000000000001844                isinteflag
+                0x0000000000001878                parse_str_by_inteflag
+                0x00000000000018ec                x86_rdmsr
+                0x0000000000001900                x86_wrmsr
+ *fill*         0x000000000000190f        0x1 00
+ .text          0x0000000000001910      0x1b8 core/task.o
+                0x0000000000001924                __switch_to
+                0x0000000000001928                schedule
+                0x0000000000001a30                exit
+                0x0000000000001a34                kernel_thread
+ .text          0x0000000000001ac8      0x5e9 drv/pci/core.o
+                0x0000000000001ac8                pci_dispcfgdata
+                0x0000000000001b80                pcidrv_register
+                0x0000000000001bfc                pcidev_register
+                0x0000000000001c48                getpciinfo
+                0x0000000000001f5c                pci_init
+ *fill*         0x00000000000020b1        0x3 00
+ .text          0x00000000000020b4      0x4f0 drv/pci/eth.o
+ .text          0x00000000000025a4      0xb98 io/disp.o
+                0x0000000000002890                test_bks
+                0x000000000000289c                n2c
+                0x00000000000028ac                printf
+                0x0000000000002d94                sprintf
+                0x000000000000307c                dump_stack
+                0x0000000000003080                dump_ram
+ .text          0x000000000000313c      0x119 io/interrupt.o
+                0x000000000000313c                int10_public
+                0x000000000000316c                interrup_register
+ *fill*         0x0000000000003255        0x3 00
+ .text          0x0000000000003258      0x17d io/kbd.o
+                0x0000000000003290                kbd_get_char
+                0x00000000000032c0                kbdctrl_outport_r
+                0x00000000000032cc                kbdctrl_outport_w
+                0x0000000000003318                kbd_int
+ *fill*         0x00000000000033d5        0x3 00
+ .text          0x00000000000033d8      0x75e io/hd.o
+                0x00000000000033d8                hd_drv_write
+                0x000000000000354c                hd_drv_read
+                0x0000000000003a70                hd_int
+                0x0000000000003b10                gethd_dev
+ *fill*         0x0000000000003b36        0x2 00
+ .text          0x0000000000003b38      0x298 mm/memory.o
+ .text          0x0000000000003dd0      0x357 mm/page.o
+                0x0000000000003dd0                page2phyaddr
+                0x0000000000003dfc                phyaddr2page
+                0x0000000000003e10                page_alloc
+                0x0000000000003f30                page_free
+                0x000000000000409c                freepage_dump
+ *fill*         0x0000000000004127        0x1 00
+ .text          0x0000000000004128        0x0 fs/block.o
+ .text          0x0000000000004128      0x16c fs/fs.o
+ .text          0x0000000000004294        0x0 fs/ext4.o
+ .text          0x0000000000004294      0x6e7 fs/ext2.o
+ *fill*         0x000000000000497b        0x1 00
+ .text          0x000000000000497c      0x30d udp_cli/server.o
+ *fill*         0x0000000000004c89        0x3 00
+ .text          0x0000000000004c8c       0xbe crc32/crc32.o
+                0x0000000000004c8c                crc32_raw
+                0x0000000000004cec                crc32
+ *fill*         0x0000000000004d4a        0x2 00
+ .text          0x0000000000004d4c       0x1f core/corestart.o
+ *fill*         0x0000000000004d6b        0x1 00
+ .text          0x0000000000004d6c       0x60 core/entrance.o
+                0x0000000000004d6c                kbd_int_entrance
+                0x0000000000004d98                hd_int_entrance
+                0x0000000000004db2                int10_public_entrance
+
+.iplt           0x0000000000004dd0        0x0
+ .iplt          0x0000000000000000        0x0 core/main.o
+
+.rodata.str1.4  0x0000000000004dcc      0xc0c
+ .rodata.str1.4
+                0x0000000000004dcc       0x4a core/main.o
+ *fill*         0x0000000000004e16        0x2 00
+ .rodata.str1.4
+                0x0000000000004e18       0x29 core/cmdlist.o
+ *fill*         0x0000000000004e41        0x3 00
+ .rodata.str1.4
+                0x0000000000004e44      0x149 core/net.o
+                                        0x171 (size before relaxing)
+ *fill*         0x0000000000004f8d        0x3 00
+ .rodata.str1.4
+                0x0000000000004f90       0x23 core/task.o
+                                         0x4a (size before relaxing)
+ *fill*         0x0000000000004fb3        0x1 00
+ .rodata.str1.4
+                0x0000000000004fb4      0x25d drv/pci/core.o
+ *fill*         0x0000000000005211        0x3 00
+ .rodata.str1.4
+                0x0000000000005214       0x95 drv/pci/eth.o
+ *fill*         0x00000000000052a9        0x3 00
+ .rodata.str1.4
+                0x00000000000052ac      0x17e io/disp.o
+                                        0x1a6 (size before relaxing)
+ *fill*         0x000000000000542a        0x2 00
+ .rodata.str1.4
+                0x000000000000542c       0x29 io/interrupt.o
+ *fill*         0x0000000000005455        0x3 00
+ .rodata.str1.4
+                0x0000000000005458      0x1e8 io/hd.o
+                                        0x210 (size before relaxing)
+ .rodata.str1.4
+                0x0000000000005640      0x1ba mm/memory.o
+ *fill*         0x00000000000057fa        0x2 00
+ .rodata.str1.4
+                0x00000000000057fc       0xa4 mm/page.o
+                                         0xec (size before relaxing)
+ .rodata.str1.4
+                0x00000000000058a0       0x28 fs/fs.o
+ .rodata.str1.4
+                0x00000000000058c8       0x59 fs/ext2.o
+                                         0x81 (size before relaxing)
+ *fill*         0x0000000000005921        0x3 00
+ .rodata.str1.4
+                0x0000000000005924       0xb4 udp_cli/server.o
+                                         0xb1 (size before relaxing)
+
+.rodata.str1.1  0x00000000000059d8      0x61f
+ .rodata.str1.1
+                0x00000000000059d8        0xc core/main.o
+ .rodata.str1.1
+                0x00000000000059e4       0x78 core/cmdlist.o
+                                         0x7b (size before relaxing)
+ .rodata.str1.1
+                0x0000000000005a5c       0x21 core/module.o
+                                         0x23 (size before relaxing)
+ .rodata.str1.1
+                0x0000000000005a7d       0x65 core/net.o
+                                         0x67 (size before relaxing)
+ .rodata.str1.1
+                0x0000000000005ae2       0x3a core/task.o
+                                         0x49 (size before relaxing)
+ .rodata.str1.1
+                0x0000000000005b1c       0x4b drv/pci/core.o
+ .rodata.str1.1
+                0x0000000000005b67       0x75 drv/pci/eth.o
+                                         0x77 (size before relaxing)
+ .rodata.str1.1
+                0x0000000000005bdc       0x3c io/disp.o
+                                         0x4b (size before relaxing)
+ .rodata.str1.1
+                0x0000000000005c18       0x37 io/kbd.o
+ .rodata.str1.1
+                0x0000000000005c4f      0x138 io/hd.o
+ .rodata.str1.1
+                0x0000000000005d87       0x9f mm/memory.o
+ .rodata.str1.1
+                0x0000000000005e26       0xb2 mm/page.o
+                                         0xc1 (size before relaxing)
+ .rodata.str1.1
+                0x0000000000005ed8       0x46 fs/fs.o
+                                         0x4f (size before relaxing)
+ .rodata.str1.1
+                0x0000000000005f1e        0x5 fs/ext4.o
+ .rodata.str1.1
+                0x0000000000005f23       0x4d fs/ext2.o
+                                         0x52 (size before relaxing)
+ .rodata.str1.1
+                0x0000000000005f70       0x87 udp_cli/server.o
+
+.rodata         0x0000000000006000      0x1be
+ .rodata        0x0000000000006000        0xd core/main.o
+ .rodata        0x000000000000600d       0x3f core/net.o
+ .rodata        0x000000000000604c       0x18 core/task.o
+ .rodata        0x0000000000006064       0x17 io/disp.o
+ *fill*         0x000000000000607b        0x5 00
+ .rodata        0x0000000000006080      0x100 io/kbd.o
+ .rodata        0x0000000000006180       0x19 io/hd.o
+ .rodata        0x0000000000006199       0x1b mm/page.o
+ .rodata        0x00000000000061b4        0xa fs/ext2.o
+
+.eh_frame       0x00000000000061c0     0x1330
+ .eh_frame      0x00000000000061c0       0x5c core/main.o
+ .eh_frame      0x000000000000621c       0xac core/cmdlist.o
+                                         0xc4 (size before relaxing)
+ .eh_frame      0x00000000000062c8       0x34 core/module.o
+                                         0x4c (size before relaxing)
+ .eh_frame      0x00000000000062fc      0x29c core/net.o
+                                        0x2b4 (size before relaxing)
+ .eh_frame      0x0000000000006598      0x18c core/func.o
+                                        0x1a4 (size before relaxing)
+ .eh_frame      0x0000000000006724       0xbc core/task.o
+                                         0xd4 (size before relaxing)
+ .eh_frame      0x00000000000067e0      0x1a0 drv/pci/core.o
+                                        0x1b8 (size before relaxing)
+ .eh_frame      0x0000000000006980      0x128 drv/pci/eth.o
+                                        0x140 (size before relaxing)
+ .eh_frame      0x0000000000006aa8      0x250 io/disp.o
+                                        0x268 (size before relaxing)
+ .eh_frame      0x0000000000006cf8       0x68 io/interrupt.o
+                                         0x80 (size before relaxing)
+ .eh_frame      0x0000000000006d60       0xa4 io/kbd.o
+                                         0xbc (size before relaxing)
+ .eh_frame      0x0000000000006e04      0x170 io/hd.o
+                                        0x188 (size before relaxing)
+ .eh_frame      0x0000000000006f74       0xc4 mm/memory.o
+                                         0xdc (size before relaxing)
+ .eh_frame      0x0000000000007038      0x150 mm/page.o
+                                        0x168 (size before relaxing)
+ .eh_frame      0x0000000000007188       0xa0 fs/fs.o
+                                         0xb8 (size before relaxing)
+ .eh_frame      0x0000000000007228      0x184 fs/ext2.o
+                                        0x19c (size before relaxing)
+ .eh_frame      0x00000000000073ac       0xec udp_cli/server.o
+                                        0x104 (size before relaxing)
+ .eh_frame      0x0000000000007498       0x58 crc32/crc32.o
+                                         0x70 (size before relaxing)
+
+.rel.dyn        0x00000000000074f0        0x0
+ .rel.iplt      0x0000000000000000        0x0 core/main.o
+ .rel.text      0x0000000000000000        0x0 core/main.o
+ .rel.init.text
+                0x0000000000000000        0x0 core/main.o
+ .rel.array.cmd
+                0x0000000000000000        0x0 core/main.o
+ .rel.data      0x0000000000000000        0x0 core/main.o
+
+.bss            0x0000000000007500      0x7ec
+ *(.bss)
+ .bss           0x0000000000007500        0x0 core/main.o
+ .bss           0x0000000000007500       0x40 core/cmdlist.o
+                0x0000000000007500                n_command
+ .bss           0x0000000000007540        0x0 core/module.o
+ .bss           0x0000000000007540        0x8 core/net.o
+ .bss           0x0000000000007548        0x0 core/func.o
+ .bss           0x0000000000007548        0x4 core/task.o
+ .bss           0x000000000000754c        0x0 drv/pci/core.o
+ *fill*         0x000000000000754c       0x14 00
+ .bss           0x0000000000007560       0x64 drv/pci/eth.o
+ .bss           0x00000000000075c4        0x0 io/disp.o
+ *fill*         0x00000000000075c4       0x1c 00
+ .bss           0x00000000000075e0       0x90 io/interrupt.o
+ .bss           0x0000000000007670        0x2 io/kbd.o
+ *fill*         0x0000000000007672        0x2 00
+ .bss           0x0000000000007674       0x18 io/hd.o
+                0x0000000000007674                cursel_partition
+ .bss           0x000000000000768c        0x4 mm/memory.o
+ .bss           0x0000000000007690        0x8 mm/page.o
+                0x0000000000007690                n_pages
+                0x0000000000007694                pagelist
+ .bss           0x0000000000007698        0x0 fs/block.o
+ .bss           0x0000000000007698        0x0 fs/fs.o
+ .bss           0x0000000000007698        0x0 fs/ext4.o
+ *fill*         0x0000000000007698        0x8 00
+ .bss           0x00000000000076a0      0x400 fs/ext2.o
+ .bss           0x0000000000007aa0        0x0 udp_cli/server.o
+ .bss           0x0000000000007aa0        0x0 crc32/crc32.o
+ .bss           0x0000000000007aa0        0x0 core/corestart.o
+ .bss           0x0000000000007aa0        0x0 core/entrance.o
+ COMMON         0x0000000000007aa0       0x10 io/disp.o
+                0x0000000000007aa0                vga_param_s
+ *fill*         0x0000000000007ab0       0x10 00
+ COMMON         0x0000000000007ac0      0x104 io/kbd.o
+                0x0000000000007ac0                kbd_rawinput_buff
+ *fill*         0x0000000000007bc4       0x1c 00
+ COMMON         0x0000000000007be0       0x70 io/hd.o
+                0x0000000000007be0                hd0_info
+                0x0000000000007c00                hd0_pdt
+                0x0000000000007c40                hd1_info
+ *fill*         0x0000000000007c50       0x10 00
+ COMMON         0x0000000000007c60       0x24 mm/memory.o
+                0x0000000000007c60                raminfo_buf
+                0x0000000000007c80                ram_size
+ *fill*         0x0000000000007c84       0x1c 00
+ COMMON         0x0000000000007ca0       0x48 mm/page.o
+                0x0000000000007ca0                fpage_list
+ COMMON         0x0000000000007ce8        0x4 fs/fs.o
+                0x0000000000007ce8                n_supportfs
+
+.data           0x0000000000007d00      0xd6c
+                0x0000000000007d00                gdt_table = .
+ *(.gdt.data)
+ .gdt.data      0x0000000000007d00       0x20 core/corestart.o
+                0x0000000000007d20                idt_table = .
+ *(.idt.data)
+ .idt.data      0x0000000000007d20      0x800 core/corestart.o
+                0x0000000000008520                fsdesc_array = .
+ *(.array.fs)
+ .array.fs      0x0000000000008520       0x40 fs/ext4.o
+                0x0000000000008520                ext4_fs
+ .array.fs      0x0000000000008560       0x40 fs/ext2.o
+                0x0000000000008560                ext2_fs
+                0x00000000000085a0                fsdesc_array_end = .
+                0x00000000000085a0                cmddesc_array = .
+ *(.array.cmd)
+ .array.cmd     0x00000000000085a0       0x20 core/cmdlist.o
+                0x00000000000085a0                cmd_help
+                0x00000000000085b0                cmd_test
+ .array.cmd     0x00000000000085c0       0x10 drv/pci/core.o
+                0x00000000000085c0                cmd_dispcidev
+ .array.cmd     0x00000000000085d0       0x10 drv/pci/eth.o
+                0x00000000000085d0                cmd_rtl8139stat
+ .array.cmd     0x00000000000085e0       0x10 io/kbd.o
+                0x00000000000085e0                cmd_reboot
+ .array.cmd     0x00000000000085f0       0x10 io/hd.o
+                0x00000000000085f0                cmd_hdop
+ .array.cmd     0x0000000000008600       0x20 mm/memory.o
+                0x0000000000008600                cmd_iorw
+                0x0000000000008610                cmd_ramdisp
+ .array.cmd     0x0000000000008620       0x20 fs/fs.o
+                0x0000000000008620                cmd_cd
+                0x0000000000008630                cmd_ls
+ .array.cmd     0x0000000000008640       0x10 udp_cli/server.o
+                0x0000000000008640                cmd_udpclireset
+                0x0000000000008650                cmddesc_array_end = .
+                0x0000000000008650                moduleinit_array_0 = .
+ *(.array.moduleinit_0)
+ .array.moduleinit_0
+                0x0000000000008650        0x4 mm/memory.o
+                0x0000000000008654                moduleinit_array_0_end = .
+                0x0000000000008654                moduleinit_array_1 = .
+ *(.array.moduleinit_1)
+                0x0000000000008654                moduleinit_array_1_end = .
+                0x0000000000008654                moduleinit_array_2 = .
+ *(.array.moduleinit_2)
+ .array.moduleinit_2
+                0x0000000000008654        0x4 core/net.o
+ .array.moduleinit_2
+                0x0000000000008658        0x4 io/kbd.o
+ .array.moduleinit_2
+                0x000000000000865c        0x4 io/hd.o
+ .array.moduleinit_2
+                0x0000000000008660        0x4 fs/fs.o
+                0x0000000000008664                moduleinit_array_2_end = .
+                0x0000000000008664                moduleinit_array_3 = .
+ *(.array.moduleinit_3)
+                0x0000000000008664                moduleinit_array_3_end = .
+                0x0000000000008664                moduleinit_array_4 = .
+ *(.array.moduleinit_4)
+                0x0000000000008664                moduleinit_array_4_end = .
+                0x0000000000008664                moduleinit_array_5 = .
+ *(.array.moduleinit_5)
+                0x0000000000008664                moduleinit_array_5_end = .
+                0x0000000000008664                moduleinit_array_6 = .
+ *(.array.moduleinit_6)
+ .array.moduleinit_6
+                0x0000000000008664        0x4 drv/pci/eth.o
+                0x0000000000008668                moduleinit_array_6_end = .
+                0x0000000000008668                moduleinit_array_7 = .
+ *(.array.moduleinit_7)
+ .array.moduleinit_7
+                0x0000000000008668        0x4 core/cmdlist.o
+ .array.moduleinit_7
+                0x000000000000866c        0x4 core/task.o
+ .array.moduleinit_7
+                0x0000000000008670        0x4 udp_cli/server.o
+                0x0000000000008674                moduleinit_array_7_end = .
+ *(.data)
+ .data          0x0000000000008674        0x0 core/main.o
+ .data          0x0000000000008674        0x0 core/cmdlist.o
+ *fill*         0x0000000000008674        0xc 00
+ .data          0x0000000000008680       0x40 core/module.o
+                0x0000000000008680                moduleinitlist
+ .data          0x00000000000086c0      0x198 core/net.o
+ .data          0x0000000000008858        0x0 core/func.o
+ .data          0x0000000000008858        0xc core/task.o
+                0x0000000000008858                task_rq_lock
+ .data          0x0000000000008864       0x10 drv/pci/core.o
+ .data          0x0000000000008874       0x1c drv/pci/eth.o
+ .data          0x0000000000008890       0x14 io/disp.o
+                0x0000000000008890                vga_console
+ .data          0x00000000000088a4        0x0 io/interrupt.o
+ .data          0x00000000000088a4        0x0 io/kbd.o
+ *fill*         0x00000000000088a4       0x1c 00
+ .data          0x00000000000088c0       0xb8 io/hd.o
+                0x00000000000088c0                hdpart_desc
+ .data          0x0000000000008978        0x4 mm/memory.o
+ *fill*         0x000000000000897c        0x4 00
+ .data          0x0000000000008980       0x24 mm/page.o
+                0x0000000000008980                range_name
+ .data          0x00000000000089a4        0x0 fs/block.o
+ *fill*         0x00000000000089a4       0x1c 00
+ .data          0x00000000000089c0       0x20 fs/fs.o
+ .data          0x00000000000089e0        0x0 fs/ext4.o
+ .data          0x00000000000089e0        0x0 fs/ext2.o
+ .data          0x00000000000089e0       0x20 udp_cli/server.o
+ .data          0x0000000000008a00        0x0 crc32/crc32.o
+ .data          0x0000000000008a00        0x0 core/corestart.o
+ .data          0x0000000000008a00        0x0 core/entrance.o
+ *(.init.data)
+ .init.data     0x0000000000008a00       0x60 core/main.o
+                0x0000000000008a00                bootparam
+ .init.data     0x0000000000008a60        0xc core/corestart.o
+                0x0000000000008a6c                symbol_sys_end = .
+OUTPUT(core.elf elf32-i386)
+
+.igot.plt       0x0000000000008a6c        0x0
+ .igot.plt      0x0000000000000000        0x0 core/main.o
+
+.comment        0x0000000000000000       0x2a
+ .comment       0x0000000000000000       0x2a core/main.o
+                                         0x2b (size before relaxing)
+ .comment       0x0000000000000000       0x2b core/cmdlist.o
+ .comment       0x0000000000000000       0x2b core/module.o
+ .comment       0x0000000000000000       0x2b core/net.o
+ .comment       0x0000000000000000       0x2b core/func.o
+ .comment       0x0000000000000000       0x2b core/task.o
+ .comment       0x0000000000000000       0x2b drv/pci/core.o
+ .comment       0x0000000000000000       0x2b drv/pci/eth.o
+ .comment       0x0000000000000000       0x2b io/disp.o
+ .comment       0x0000000000000000       0x2b io/interrupt.o
+ .comment       0x0000000000000000       0x2b io/kbd.o
+ .comment       0x0000000000000000       0x2b io/hd.o
+ .comment       0x0000000000000000       0x2b mm/memory.o
+ .comment       0x0000000000000000       0x2b mm/page.o
+ .comment       0x0000000000000000       0x2b fs/block.o
+ .comment       0x0000000000000000       0x2b fs/fs.o
+ .comment       0x0000000000000000       0x2b fs/ext4.o
+ .comment       0x0000000000000000       0x2b fs/ext2.o
+ .comment       0x0000000000000000       0x2b udp_cli/server.o
+ .comment       0x0000000000000000       0x2b crc32/crc32.o
+
+.note.GNU-stack
+                0x0000000000000000        0x0
+ .note.GNU-stack
+                0x0000000000000000        0x0 core/main.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 core/cmdlist.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 core/module.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 core/net.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 core/func.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 core/task.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 drv/pci/core.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 drv/pci/eth.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 io/disp.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 io/interrupt.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 io/kbd.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 io/hd.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 mm/memory.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 mm/page.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 fs/block.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 fs/fs.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 fs/ext4.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 fs/ext2.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 udp_cli/server.o
+ .note.GNU-stack
+                0x0000000000000000        0x0 crc32/crc32.o

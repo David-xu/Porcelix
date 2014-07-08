@@ -10,7 +10,7 @@ CC := gcc
 # IOSRC_DIR := $(CURDIR)/io
 
 # all of the '.c' source file
-src_c := core/main.c core/cmdlist.c core/module.c core/net.c core/func.c	\
+src_c := core/main.c core/cmdlist.c core/module.c core/net.c core/func.c core/task.c	\
 	drv/pci/core.c drv/pci/eth.c									\
 	io/disp.c io/interrupt.c io/kbd.c io/hd.c						\
 	mm/memory.c mm/page.c											\

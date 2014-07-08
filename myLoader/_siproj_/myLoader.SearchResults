@@ -1,0 +1,10 @@
+---- module_init Matches (9 in 9 files) ----
+Cmdlist.c (z:\home\david\c_c++\porcelix\myloader\core):module_init(cmdlist_init, 7);
+Eth.c (z:\home\david\c_c++\porcelix\myloader\drv\pci):module_init(realtek8139init, 6);
+Fs.c (z:\home\david\c_c++\porcelix\myloader\fs):module_init(fs_init, 2);
+Hd.c (z:\home\david\c_c++\porcelix\myloader\io):module_init(hd_init, 2);
+Kbd.c (z:\home\david\c_c++\porcelix\myloader\io):module_init(kbd_init, 2);
+Memory.c (z:\home\david\c_c++\porcelix\myloader\mm):module_init(mem_init, 0);
+Module.h (z:\home\david\c_c++\porcelix\myloader\include):#define module_init(func, level)                            \
+Net.c (z:\home\david\c_c++\porcelix\myloader\core):module_init(netproc_init, 2);
+Server.c (z:\home\david\c_c++\porcelix\myloader\udp_cli):module_init(udpcli_init, 7);

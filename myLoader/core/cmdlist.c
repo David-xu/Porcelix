@@ -9,17 +9,34 @@
 #include "hd.h"
 #include "module.h"
 #include "net.h"
+#include "task.h"
 
 unsigned n_command = 0;
 
+int testtask(void *param)
+{
+    int count = 0;
+    while (1)
+    {
+        printf("param:0x%#8x, count:%d\n", (u32)param, count);
+        schedule();
+    }
+
+    return 0;
+}
+
 static void cmd_test_opfunc(char *argv[], int argc, void *param)
 {
+#if 0
     /* rdmsr */
     regbuf_u regbuf;
     regbuf.reg.ecx = 0x1b;
     x86_rdmsr(&regbuf);
 
     printf("edx:0x%#8x, eax:0x%#8x\n", regbuf.reg.edx, regbuf.reg.eax);
+#endif
+    kernel_thread(testtask, (void *)0x11223344);
+    schedule();
 }
 
 struct command cmd_test _SECTION_(.array.cmd) =
