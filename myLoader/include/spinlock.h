@@ -16,11 +16,15 @@ static inline void spin_lock(spinlock_t *lock)
     while (lock->lock == 0);
     lock->lock = 0;
     barrier();
+
+    printf("lock\n");
 }
 
 static inline void spin_unlock(spinlock_t *lock)
 {
     lock->lock = 1;
+
+    printf("unlock\n");
 }
 
 

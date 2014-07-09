@@ -12,8 +12,6 @@ struct command {
     
     void (*op_func)(char *argv[], int argc, void *param);
 };
-
-void cmd_loop(void);
 
 
 /*  */

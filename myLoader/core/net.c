@@ -8,6 +8,7 @@
 #include "debug.h"
 #include "ml_string.h"
 #include "interrupt.h"
+#include "task.h"
 
 static LIST_HEAD(rxef_list);
 
@@ -82,28 +83,6 @@ int arp_getmacaddr(u8 *ipaddr, u8 *macaddr)
 static u8   ipaddr[4];
 static u8   ipmask[4];
 const static u8     ipaddr_any[4] = {0, 0, 0, 0};
-
-static void __init netproc_init(void)
-{
-    u32 count;
-    
-    for (count = 0; count < arpcache.listsize; count++)
-    {
-        arpcache.list[count].valid = 0;
-    }
-    
-    ipaddr[0] = 192;
-    ipaddr[1] = 168;
-    ipaddr[2] = 1;
-    ipaddr[3] = 20;
-
-    ipmask[0] = 255;
-    ipmask[1] = 255;
-    ipmask[2] = 255;
-    ipmask[3] = 0;
-}
-
-module_init(netproc_init, 2);
 
 u16 checksum(u32 cksum, void *pBuffer, u16 len)
 {
@@ -355,27 +334,36 @@ static void efproc(ethframe_t *ef)
     }
 }
 
-/* process all of the rx ethframe */
-void do_fbproc(void)
+/* pending frame procedure, process all of the rx ethframe */
+static int do_fbproc(void *param)
 {
     ethframe_t *ef;
     struct list_head *first_ef;
-    while (!CHECK_LIST_EMPTY(&rxef_list))
+
+    while (1)
     {
-        /* kick out and process the each ef */
-        u32 flags;
-        raw_local_irq_save(flags);
-        first_ef = list_remove_head(&rxef_list);
-        raw_local_irq_restore(flags);
+        while (!CHECK_LIST_EMPTY(&rxef_list))
+        {
+            /* kick out and process the each ef */
+            u32 flags;
+            raw_local_irq_save(flags);
+            first_ef = list_remove_head(&rxef_list);
+            raw_local_irq_restore(flags);
 
-        /* process the eth frame */
-        ef = GET_CONTAINER(first_ef, ethframe_t, e);
-        DEBUG("rx eth frame, len=%d\n", ef->len);
-        
-        efproc(ef);
+            /* process the eth frame */
+            ef = GET_CONTAINER(first_ef, ethframe_t, e);
+            DEBUG("rx eth frame, len=%d\n", ef->len);
+            
+            efproc(ef);
 
-        page_free(phyaddr2page(ef));
+            page_free(phyaddr2page(ef));
+        }
+
+        sleep(1000);
     }
+
+    /* never reach here */
+    return 0;
 }
 
 void rxef_insert(ethframe_t *ef)
@@ -477,4 +465,30 @@ int udp_send(sock_context_t *sockctx, void *buff, u16 len)
 
     return 0;
 }
+
+static void __init netproc_init(void)
+{
+    u32 count;
+    
+    for (count = 0; count < arpcache.listsize; count++)
+    {
+        arpcache.list[count].valid = 0;
+    }
+    
+    ipaddr[0] = 192;
+    ipaddr[1] = 168;
+    ipaddr[2] = 1;
+    ipaddr[3] = 20;
+
+    ipmask[0] = 255;
+    ipmask[1] = 255;
+    ipmask[2] = 255;
+    ipmask[3] = 0;
+
+    /* this the ethframe proc task */
+    kernel_thread(do_fbproc, NULL);
+}
+
+module_init(netproc_init, 2);
+
 

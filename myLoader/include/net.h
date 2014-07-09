@@ -122,9 +122,6 @@ typedef struct _ethii_vlantag {
 } ethii_vlantag;
 */
 
-/* do pending frame procedure */
-void do_fbproc(void);
-
 void rxef_insert(ethframe_t *ef);
 
 #define PORT_ALL            (0xFFFF)

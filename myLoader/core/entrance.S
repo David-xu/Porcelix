@@ -8,9 +8,6 @@ kbd_int_entrance:
 	push	%ds
 	push	%es
 
-
-	call kbd_int
-
 	/* need to disable and enable the kbd controller, copied from linux kernel */
 	inb		$0x61, %al
 	jmp		1f
@@ -27,6 +24,8 @@ kbd_int_entrance:
 	/* send EOI to 8259A master */
 	movb	$0x20, %al
 	outb	%al, $0x20
+
+	call kbd_int
 
 	pop		%es
 	pop		%ds
@@ -46,15 +45,14 @@ hd_int_entrance:
 	push	%ds
 	push	%es
 
-
-	call hd_int
-
 	/* send EOI to 8259A slaver */
 	movb	$0x20, %al
 	outb	%al, $0xA0
 	/* send EOI to 8259A master */
 	movb	$0x20, %al
 	outb	%al, $0x20
+
+	call hd_int
 
 	pop		%es
 	pop		%ds
@@ -74,15 +72,14 @@ int10_public_entrance:
 	push	%ds
 	push	%es
 
-
-	call int10_public
-
 	/* send EOI to 8259A slaver */
 	movb	$0x20, %al
 	outb	%al, $0xA0
 	/* send EOI to 8259A master */
 	movb	$0x20, %al
 	outb	%al, $0x20
+
+	call int10_public
 
 	pop		%es
 	pop		%ds
@@ -91,3 +88,25 @@ int10_public_entrance:
 	popl	%ebx
 	popl	%eax
 	iret
+
+.global lapictimer_entrance
+.global lapictimer
+lapictimer_entrance:
+	pushl	%eax
+	pushl	%ebx
+	pushl	%ecx
+	pushl	%edx
+	push	%ds
+	push	%es
+
+	movl	$0, 0xfee000b0		/* send the EOI to lapic */
+	call lapictimer
+
+	pop		%es
+	pop		%ds
+	popl	%edx
+	popl	%ecx
+	popl	%ebx
+	popl	%eax
+	iret
+

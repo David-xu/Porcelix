@@ -8,6 +8,7 @@
 #include "ml_string.h"
 #include "list.h"
 #include "memory.h"
+#include "module.h"
 
 static LIST_HEAD(pcidevlist);
 static LIST_HEAD(pcidrvlist);
@@ -250,5 +251,7 @@ findoneproperdrv:
                 }
             }
 }
+
+module_init(pci_init, 6);
 
 

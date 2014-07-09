@@ -45,6 +45,9 @@ enum X86_VECTORTYPE{
     X86_VECTOR_IRQ_2D,          /* Math CoProcessor         */
     X86_VECTOR_IRQ_2E,          /* HardDisk INT             */
     X86_VECTOR_IRQ_2F,          /* Reserve 04               */
+
+/* custom vector */
+    CUSTOM_VECTOR_LAPICTIMER = 0x50,
 };
 
 struct segdesc{

@@ -276,7 +276,7 @@ static void __init realtek8139init()
     pcidrv_register(&realtek8139_drv);
 }
 
-module_init(realtek8139init, 6);
+module_init(realtek8139init, 4);
 
 static void cmd_rtl8139stat_opfunc(char *argv[], int argc, void *param)
 {

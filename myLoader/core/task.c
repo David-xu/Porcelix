@@ -5,6 +5,8 @@
 #include "command.h"
 #include "module.h"
 #include "spinlock.h"
+#include "desc.h"
+#include "interrupt.h"
 
 DEFINE_SPINLOCK(task_rq_lock);
 static LIST_HEAD(task_running);
@@ -35,17 +37,25 @@ void schedule(void)
     task_t *prev = current;
     task_t *next = getnexttask();
 
+    printf("next pid:%d\n", next->pid);
+
+
+    if (next == NULL)
+    {
+        return;
+    }
+
     if (prev == next)
     {
         return;
     }
-    // printf("next pid:%d\n", next->pid);
+    
 
     /* now the 'next' is at the head of the running q
        we have to move it ot the tail of the running q */
     spin_lock(&task_rq_lock);
-    list_add_tail(&(prev->q), &task_running);
     list_remove(&(next->q));
+    list_add_tail(&(next->q), &task_running);
     spin_unlock(&task_rq_lock);
 
     /* context switch */
@@ -54,7 +64,15 @@ void schedule(void)
 
 void exit(int exit_code)
 {
+    task_t *t = current;
 
+    /* now we remove the task outof the running q */
+    list_remove(&(t->q));
+
+    /* just free the stack */
+    page_free(phyaddr2page(t->stack));
+
+    /*  */
 }
 
 int kernel_thread(task_entry entry, void *param)
@@ -75,9 +93,9 @@ int kernel_thread(task_entry entry, void *param)
     if (entry)
     {
         /* prepare the stack */
-        u32 *sp = (u32 *)(newstack++) - 2;          /* take 2 u32 as the hole */
-        *(--sp) = (u32)kernel_task_ret;             /* this is task_entry return addr */
+        u32 *sp = (u32 *)((u32)newstack + TASKSTACK_SIZE) - 2;  /* take 2 u32 as the hole */
         *(--sp) = (u32)param;
+        *(--sp) = (u32)kernel_task_ret;             /* this is task_entry return addr */
         /**/
         newtask->ctx_ip = (u32)entry;
         newtask->ctx_sp = (u32)sp;
@@ -88,6 +106,17 @@ int kernel_thread(task_entry entry, void *param)
     }
     
     return newtask->pid;
+}
+
+void sleep(int usec)
+{
+
+}
+
+/* system tick int */
+asmlinkage void lapictimer(void)
+{
+    schedule();
 }
 
 static void __init sched_init(void)
@@ -101,16 +130,16 @@ static void __init sched_init(void)
     task0->state = STATE_RUNNING;
     task0->pid = freepid++;
     /* insert in to the running q, need to get lock first */
-#if 0
     spin_lock(&task_rq_lock);
     list_add_tail(&(task0->q), &task_running);
     spin_unlock(&task_rq_lock);
-#endif
 
     /* init the tick timer */
-    
+    set_idt(CUSTOM_VECTOR_LAPICTIMER, lapictimer_entrance);
+    *((u32 *)0xFEE00380) = 0x100000;   /* initial count */
+    *((u32 *)0xFEE00320) = 0x20000 | CUSTOM_VECTOR_LAPICTIMER;
 }
 
-module_init(sched_init, 7);
+module_init(sched_init, 1);
 
 

@@ -82,5 +82,10 @@ typedef int (*task_entry)(void *param);
 /* ring 0 thread */
 int kernel_thread(task_entry entry, void *param);
 
+/* sleep
+ * usec: micro second
+ */
+void sleep(int usec);
+
 #endif
 

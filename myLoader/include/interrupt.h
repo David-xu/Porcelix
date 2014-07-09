@@ -62,6 +62,8 @@ extern void int10_public_entrance(void);
 extern void kbd_int_entrance(void);
 extern void hd_int_entrance(void);
 
+extern void lapictimer_entrance(void);
+
 
 void interrupt_init() _SECTION_(.init.text);
 

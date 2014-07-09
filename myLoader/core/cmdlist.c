@@ -16,9 +16,9 @@ unsigned n_command = 0;
 int testtask(void *param)
 {
     int count = 0;
-    while (1)
+    // while (1)
     {
-        printf("param:0x%#8x, count:%d\n", (u32)param, count);
+        printf("param:0x%#8x, count:%d\n", (u32)param, count++);
         schedule();
     }
 
@@ -116,7 +116,7 @@ static char* cmd_get_title(void)
     return title;
 }
 
-void cmd_loop(void)
+static int cmd_loop(void *param)
 {
     int i, getch = 0;
     u16 pos = 0;
@@ -130,8 +130,7 @@ void cmd_loop(void)
             getch = kbd_get_char();
             if (getch == -1)
             {
-                /* there is no kbd input, we just do some thing */
-                do_fbproc();
+                /* there is no kbd input */
                 continue;
             }
 
@@ -185,11 +184,17 @@ void cmd_loop(void)
         pos = 0;
         getch = 0;
     }
+
+    /* never reach here */
+    return 0;
 }
 
 static void __init cmdlist_init(void)
 {
     n_command = (GET_SYMBOLVALUE(cmddesc_array_end) - GET_SYMBOLVALUE(cmddesc_array)) / sizeof(struct command);
+
+    /* this is the command loop thread */
+    kernel_thread(cmd_loop, NULL);
 }
 
 module_init(cmdlist_init, 7);

@@ -34,6 +34,14 @@ void getbootparam()
 
 // void loader_entry(void) __attribute__((noreturn));
 
+static void idleloop(void)
+{
+    while (1)
+    {
+
+    }
+}
+
 void loader_entry(void)
 {
     /* check the crc */
@@ -44,14 +52,9 @@ void loader_entry(void)
     interrupt_init();
     disp_init();            /* after that we can do some screen print... */
 
-
     /* call all the module init functions as the level order */
     init_module();
 
-    /* now we do some device register in this func,
-       so we have to maintain that as the last init call*/
-    pci_init();
-
-    cmd_loop();
+    idleloop();
 }
 
