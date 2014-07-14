@@ -3,13 +3,14 @@
 
 #include "section.h"
 #include "list.h"
+#include "typedef.h"
 
 #define _cli()      do {asm volatile("cli":::"memory");} while (0)
 #define _sti()      do {asm volatile("sti":::"memory");} while (0)
 
 static inline unsigned long native_save_fl(void)
 {
-	unsigned long flags;
+	u32 flags;
 
 	/*
 	 * "=rm" is safe here, because "pop" adjusts the stack before
@@ -25,7 +26,7 @@ static inline unsigned long native_save_fl(void)
 	return flags;
 }
 
-static inline void native_restore_fl(unsigned long flags)
+static inline void native_restore_fl(u32 flags)
 {
 	asm volatile("push %0 ; popf"
 		     : /* no output */

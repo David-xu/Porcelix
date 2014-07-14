@@ -11,6 +11,7 @@
 #include "command.h"
 #include "pci.h"
 #include "module.h"
+#include "task.h"
 
 struct bootparam {
     u8  boot_dev;
@@ -33,14 +34,6 @@ void getbootparam()
 }
 
 // void loader_entry(void) __attribute__((noreturn));
-
-static void idleloop(void)
-{
-    while (1)
-    {
-
-    }
-}
 
 void loader_entry(void)
 {

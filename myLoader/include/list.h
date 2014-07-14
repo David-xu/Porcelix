@@ -33,6 +33,11 @@ struct list_head{
              (p) != (struct list_head *)(head);             \
              (p) = (p)->next)
 
+#define LIST_WALK_THROUTH_SAVE(p, head, t)                                  \
+        for ((p) = ((struct list_head *)(head))->next, (t) = (p)->next;     \
+             (p) != (struct list_head *)(head);                             \
+             (p) = (t), (t) = (t)->next)
+
 /*
  *  entry : owner struct pointer
  *   head : list_head pointer

@@ -144,9 +144,10 @@ int kbd_get_char()
         return -1;
     }
 
-    ret = kbd_rawinput_buff.buff[kbd_rawinput_buff.readpos++];
+    ret = kbd_rawinput_buff.buff[kbd_rawinput_buff.readpos];
 
     // modify the read pos
+    kbd_rawinput_buff.readpos += 1;
     kbd_rawinput_buff.readpos %= KBD_RAWINPUTBUFF_SIZE;
 
     return ret;

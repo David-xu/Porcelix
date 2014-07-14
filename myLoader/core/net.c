@@ -335,31 +335,33 @@ static void efproc(ethframe_t *ef)
 }
 
 /* pending frame procedure, process all of the rx ethframe */
-static int do_fbproc(void *param)
+int do_fbproc(void *param)
 {
     ethframe_t *ef;
     struct list_head *first_ef;
 
     while (1)
     {
-        while (!CHECK_LIST_EMPTY(&rxef_list))
+        if (CHECK_LIST_EMPTY(&rxef_list))
         {
-            /* kick out and process the each ef */
-            u32 flags;
-            raw_local_irq_save(flags);
-            first_ef = list_remove_head(&rxef_list);
-            raw_local_irq_restore(flags);
-
-            /* process the eth frame */
-            ef = GET_CONTAINER(first_ef, ethframe_t, e);
-            DEBUG("rx eth frame, len=%d\n", ef->len);
-            
-            efproc(ef);
-
-            page_free(phyaddr2page(ef));
+            sleep(100);
+            schedule();
+            continue;
         }
+ 
+        /* kick out and process the each ef */
+        u32 flags;
+        raw_local_irq_save(flags);
+        first_ef = list_remove_head(&rxef_list);
+        raw_local_irq_restore(flags);
 
-        sleep(1000);
+        /* process the eth frame */
+        ef = GET_CONTAINER(first_ef, ethframe_t, e);
+        DEBUG("rx eth frame, len=%d\n", ef->len);
+        
+        efproc(ef);
+
+        page_free(phyaddr2page(ef));
     }
 
     /* never reach here */
@@ -368,7 +370,11 @@ static int do_fbproc(void *param)
 
 void rxef_insert(ethframe_t *ef)
 {
+    u32 flags;
+
+    raw_local_irq_save(flags);
     list_add_tail(&(ef->e),&rxef_list);
+    raw_local_irq_restore(flags);
 }
 
 /*  */

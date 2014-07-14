@@ -83,6 +83,7 @@ struct segdesc{
 enum desc_type
 {
     X86DESCTYPE_IDT_32 = 0xE,
+    X86DESCTYPE_TRAP_32 = 0xF,
 };
 
 struct idtdesc
@@ -133,6 +134,23 @@ static inline void set_idt(u8 vect, void *addr)
 
     memcpy((u8 *)&(idt_table[vect]), (u8 *)&idt, sizeof(idt));
 }
+
+static inline void set_trap(u8 vect, void *addr)
+{
+    struct idtdesc idt;
+
+    idt.type = X86DESCTYPE_TRAP_32;
+    idt.funcaddr_h16 = ((u32)addr) >> 16;
+    idt.funcaddr_l16 = (u16)(u32)addr;
+
+    idt.dpl = 0;
+    idt.p = 1;
+    idt.s = 0;
+    idt.desc = SYSDESC_CODE;
+
+    memcpy((u8 *)&(idt_table[vect]), (u8 *)&idt, sizeof(idt));
+}
+
 
 #endif
 

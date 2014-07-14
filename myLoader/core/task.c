@@ -11,11 +11,37 @@
 DEFINE_SPINLOCK(task_rq_lock);
 static LIST_HEAD(task_running);
 
+DEFINE_SPINLOCK(task_sq_lock);
+static LIST_HEAD(task_stop);
+
+DEFINE_SPINLOCK(task_eq_lock);
+static LIST_HEAD(task_exit);
+
 static int freepid = 0;
 
 __attribute__((regparm(3))) task_t *__switch_to(task_t *prev, task_t *next)
 {
     return next;
+}
+
+void idleloop(void)
+{
+    while (1)
+    {
+        struct list_head *p, *pn;
+        LIST_WALK_THROUTH_SAVE(p, &task_exit, pn)
+        {
+            spin_lock(&task_eq_lock);
+            list_remove(p);
+            spin_unlock(&task_eq_lock);
+        
+            task_t *t = GET_CONTAINER(p, task_t, q);
+
+            page_free(phyaddr2page(t->stack));
+        }
+
+        schedule();
+    }
 }
 
 static void kernel_task_ret(void)
@@ -37,7 +63,7 @@ void schedule(void)
     task_t *prev = current;
     task_t *next = getnexttask();
 
-    printf("next pid:%d\n", next->pid);
+    // printf("next pid:%d\n", next->pid);
 
 
     if (next == NULL)
@@ -67,12 +93,19 @@ void exit(int exit_code)
     task_t *t = current;
 
     /* now we remove the task outof the running q */
+    spin_lock(&task_rq_lock);
     list_remove(&(t->q));
+    spin_unlock(&task_rq_lock);
+
+    spin_lock(&task_eq_lock);
+    list_add_head(&(t->q), &task_exit);
+    spin_unlock(&task_eq_lock);
 
     /* just free the stack */
-    page_free(phyaddr2page(t->stack));
+    // page_free(phyaddr2page(t->stack));
 
     /*  */
+    schedule();
 }
 
 int kernel_thread(task_entry entry, void *param)
@@ -116,7 +149,7 @@ void sleep(int usec)
 /* system tick int */
 asmlinkage void lapictimer(void)
 {
-    schedule();
+    // schedule();
 }
 
 static void __init sched_init(void)
@@ -135,7 +168,7 @@ static void __init sched_init(void)
     spin_unlock(&task_rq_lock);
 
     /* init the tick timer */
-    set_idt(CUSTOM_VECTOR_LAPICTIMER, lapictimer_entrance);
+    set_trap(CUSTOM_VECTOR_LAPICTIMER, lapictimer_entrance);
     *((u32 *)0xFEE00380) = 0x100000;   /* initial count */
     *((u32 *)0xFEE00320) = 0x20000 | CUSTOM_VECTOR_LAPICTIMER;
 }

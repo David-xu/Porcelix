@@ -11,7 +11,8 @@
 typedef enum _task_state {
     STATE_RUNNING = 0,
     STATE_WAIT,
-    STATE_STOP
+    STATE_STOP,
+    STATE_EXIT
 } task_state_e;
 
 struct _task_stack;
@@ -81,6 +82,9 @@ typedef int (*task_entry)(void *param);
 
 /* ring 0 thread */
 int kernel_thread(task_entry entry, void *param);
+
+void idleloop(void);
+
 
 /* sleep
  * usec: micro second

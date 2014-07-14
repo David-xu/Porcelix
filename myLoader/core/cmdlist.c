@@ -36,7 +36,6 @@ static void cmd_test_opfunc(char *argv[], int argc, void *param)
     printf("edx:0x%#8x, eax:0x%#8x\n", regbuf.reg.edx, regbuf.reg.eax);
 #endif
     kernel_thread(testtask, (void *)0x11223344);
-    schedule();
 }
 
 struct command cmd_test _SECTION_(.array.cmd) =
@@ -116,7 +115,7 @@ static char* cmd_get_title(void)
     return title;
 }
 
-static int cmd_loop(void *param)
+int cmd_loop(void *param)
 {
     int i, getch = 0;
     u16 pos = 0;
@@ -131,6 +130,7 @@ static int cmd_loop(void *param)
             if (getch == -1)
             {
                 /* there is no kbd input */
+                schedule();
                 continue;
             }
 

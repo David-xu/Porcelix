@@ -21,11 +21,11 @@ kbd_int_entrance:
 1:	andb	$0x7F, %al
 	outb	%al, $0x61
 
+	call kbd_int
+
 	/* send EOI to 8259A master */
 	movb	$0x20, %al
 	outb	%al, $0x20
-
-	call kbd_int
 
 	pop		%es
 	pop		%ds
@@ -45,14 +45,14 @@ hd_int_entrance:
 	push	%ds
 	push	%es
 
+	call hd_int
+
 	/* send EOI to 8259A slaver */
 	movb	$0x20, %al
 	outb	%al, $0xA0
 	/* send EOI to 8259A master */
 	movb	$0x20, %al
 	outb	%al, $0x20
-
-	call hd_int
 
 	pop		%es
 	pop		%ds
@@ -72,14 +72,14 @@ int10_public_entrance:
 	push	%ds
 	push	%es
 
+	call int10_public
+
 	/* send EOI to 8259A slaver */
 	movb	$0x20, %al
 	outb	%al, $0xA0
 	/* send EOI to 8259A master */
 	movb	$0x20, %al
 	outb	%al, $0x20
-
-	call int10_public
 
 	pop		%es
 	pop		%ds
@@ -100,6 +100,7 @@ lapictimer_entrance:
 	push	%es
 
 	movl	$0, 0xfee000b0		/* send the EOI to lapic */
+
 	call lapictimer
 
 	pop		%es

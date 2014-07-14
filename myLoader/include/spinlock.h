@@ -7,24 +7,25 @@
 
 typedef struct spinlock {
     volatile int lock;
+    u32 flag;
 } spinlock_t;
 
 #define DEFINE_SPINLOCK(name)   spinlock_t name = {1};
 
 static inline void spin_lock(spinlock_t *lock)
 {
+    raw_local_irq_save(lock->flag);
+
     while (lock->lock == 0);
     lock->lock = 0;
     barrier();
-
-    printf("lock\n");
 }
 
 static inline void spin_unlock(spinlock_t *lock)
 {
     lock->lock = 1;
-
-    printf("unlock\n");
+    
+    raw_local_irq_restore(lock->flag);
 }
 
 
