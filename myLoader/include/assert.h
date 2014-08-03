@@ -14,5 +14,13 @@
             }                                                       \
         }
 
+#define	ERROR(fmt, ...)												\
+		{															\
+			printf("ERROR!\nFile:%s, Func:%s, Line:%d\n",			\
+				   __FILE__, __func__, __LINE__);					\
+			printf(fmt, ##__VA_ARGS__);								\
+			while(1);												\
+		}
+
 #endif
 

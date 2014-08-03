@@ -147,7 +147,7 @@ Notes:	supported by the A03 level (6/14/94) and later XPS P90 BIOSes, as well
 struct raminfo{
     u16     ax, bx, cx, dx;
 };
-u16 raminfo_buf[RAMINFO_MAXLEN];
+u16 raminfo_buf[RAMINFO_MAXLEN] _SECTION_(.coreentry.param);
 
 u32 ram_size;           /* we call the bios to get this param. */
 

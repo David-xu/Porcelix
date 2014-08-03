@@ -4,6 +4,7 @@
 #include "typedef.h"
 #include "fs.h"
 #include "device.h"
+#include "boot.h"
 
 enum hdreq_e{
     HDREQ_READ = 0,
@@ -44,21 +45,6 @@ struct hd_info{
 // extern struct hd_info hdinfo;
 
 
-
-/* the hd partion table store in address: 0x7c00 + 0x01BE */
-struct hd_dptentry{
-    u8      boot_ind;
-    u8      start_head;
-    u16     start_sect: 6;
-    u16     start_cyl : 10;
-    u8      sys_ind;    /* 0xb-DOS, 0x80-OldMinix, 0x83-Linux */
-    u8      end_head;
-    u16     end_sect: 6;
-    u16     end_cyl : 10;
-    u32     start_logicsect;        /* this is the partition start logicsect
-                                       in whole harddisk sector range */
-    u32     n_logicsect;
-}__attribute__((packed));
 
 #define HD_PDTENTRY_NUM             (4)
 extern struct hd_dptentry hd0_pdt[HD_PDTENTRY_NUM];

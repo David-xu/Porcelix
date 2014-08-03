@@ -14,11 +14,11 @@
 #include "module.h"
 
 /* we get the harddisk infomation in the core start session. */
-struct hd_info hd0_info /* _SECTION_(.init.data) */;
-struct hd_info hd1_info;
+struct hd_info hd0_info _SECTION_(.coreentry.param);
+struct hd_info hd1_info _SECTION_(.coreentry.param);
 
 /* we get the harddisk partitin table in the core start session. */
-struct hd_dptentry hd0_pdt[HD_PDTENTRY_NUM] /* _SECTION_(.init.data) */;
+struct hd_dptentry hd0_pdt[HD_PDTENTRY_NUM];
 
 static struct hd_request *hd_cur_rq;
 

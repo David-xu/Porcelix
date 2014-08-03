@@ -102,7 +102,7 @@ void exit(int exit_code)
     spin_unlock(&task_eq_lock);
 
     /* just free the stack */
-    // page_free(phyaddr2page(t->stack));
+    page_free(phyaddr2page(t->stack));
 
     /*  */
     schedule();

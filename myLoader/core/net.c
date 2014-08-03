@@ -495,6 +495,6 @@ static void __init netproc_init(void)
     kernel_thread(do_fbproc, NULL);
 }
 
-module_init(netproc_init, 2);
+module_init(netproc_init, 3);
 
 

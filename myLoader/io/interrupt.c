@@ -21,9 +21,6 @@ void interrupt_init()
         _list_init(&(int_pubent_list[intmask]));
     }
 
-    /* disable interrupt */
-    _cli();
-
     /* setup the 8259A */
     /* ICW1 */
     outb(0x11, PORT_8259A_MASTER_A0);

@@ -7,6 +7,11 @@
 .section .init.start
 .code16
 
+.global core_entry
+core_entry:
+/* we used the ASM as the core init, now we use the C */
+#if 0
+
 /* step 1: get some info from boot.bin, the first 512B */
 
 /* read the hd partition table, then store it in global var hd0_pdt */
@@ -60,7 +65,7 @@ rep		movsw
 
 /* get the System RAM information */
 .global raminfo_buf
-movw	$(IMGCORE_LOADADDR_BASE + IMGCORE_LOADADDR_OFFSET >> 4), %ax	/* prepare es and di */
+movw	$(IMGCORE_LOADADDR_BASE + IMGCORE_LOADADDR_OFFSET >> 4), %ax	/* prepare ds and di */
 movw	%ax, %ds
 movw	$raminfo_buf, %di
 /* int 15 ax:0xE820, get the ram info and store in the es:di */
@@ -71,8 +76,6 @@ movw	%ax, (%di)
 movw	%bx, 2(%di)
 movw	%cx, 4(%di)
 movw	%dx, 6(%di)
-
-
 
 
 
@@ -95,11 +98,25 @@ movw	%ax, %es	/* es == 0x0 */
 movw	%ax, %di	/* di == 0x0 */
 
 rep		movsw
+#else
 
+mov		%cs, %ax
+mov		%ax, %ds
+mov		%ax, %es
+
+.global corestart_16c
+
+jmp		corestart_16c
+
+#endif
 
 
 
 /* change the mode to PE */
+.global jump2pe
+
+jump2pe:
+cli
 
 /* prepare the seg desc */
 xorw	%ax, %ax

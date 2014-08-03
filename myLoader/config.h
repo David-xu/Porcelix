@@ -12,14 +12,18 @@
 /* core begin sector num  */
 #define IMGCORE_OFFSET              (1)
 /* core img load addr */
-#define	IMGCORE_LOADADDR_OFFSET     (0x8000)        /* offset */
-#define IMGCORE_LOADADDR_BASE		(0x2000)        /* ds */
-#define IMGCORE_LOADADDR			((IMGCORE_LOADADDR_BASE << 16) + IMGCORE_LOADADDR_OFFSET)
+#define IMGCORE_LOADADDR			(0x30000)
+#define	IMGCORE_LOADADDR_OFFSET     (IMGCORE_LOADADDR & 0xF)				/* offset */
+#define IMGCORE_LOADADDR_BASE		(IMGCORE_LOADADDR >> 4)					/* ds */
+
+#if 1
 /* int 0x13 al=0x42
    max sector number:007Fh   for   Phoenix   EDD */
 #define SECTORNUM_CORESIZE          (127)
 /* coresize */
 #define IMGCORE_SIZE_WORD           (HD_SECTOR_SIZE * SECTORNUM_CORESIZE / 2)
+#endif
+
 /* hd pdt and hd info position */
 #define HD0_INFOADDR_ENTRYADDR_BASE      (0x0000)
 #define HD0_INFOADDR_ENTRYADDR_OFFSET    (0x0104)

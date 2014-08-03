@@ -4,6 +4,7 @@
 #include "typedef.h"
 #include "assert.h"
 
+
 #define barrier() asm volatile("" ::: "memory")
 
 #define PUBLIC_BITWIDTH_1K         (10)

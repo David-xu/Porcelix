@@ -1,3 +1,4 @@
+#include "public.h"
 #include "typedef.h"
 #include "assert.h"
 #include "section.h"
@@ -12,15 +13,11 @@
 #include "pci.h"
 #include "module.h"
 #include "task.h"
+#include "boot.h"
+#include "crc32.h"
 
-struct bootparam {
-    u8  boot_dev;
-    u8  rsv[29];
-    struct hd_dptentry hd_pdt[4];
-    u16 bootsectflag;           /* 0xAA55 */
-}__attribute__((packed));
+struct bootparam bootparam _SECTION_(.coreentry.param);
 
-struct bootparam bootparam _SECTION_(.init.data);
 void getbootparam()
 {
     u32 i;
@@ -37,13 +34,28 @@ void getbootparam()
 
 void loader_entry(void)
 {
-    /* check the crc */
-    
+	/* we just check the loader buff */
+	u32 corecrc = crc32((void *)IMGCORE_LOADADDR,
+						bootparam.n_sect * HD_SECTOR_SIZE);
+
     /* copy the boot param from boot.bin */
     getbootparam();
 
-    interrupt_init();
+    interrupt_init();		/* after that we enable INT */
     disp_init();            /* after that we can do some screen print... */
+	
+    /* check the crc */
+	if (bootparam.core_crc != corecrc)
+	{
+		ERROR("CRC check failed. 0x%#8x != 0x%#8x, Total core sectors: %d\n",
+			  bootparam.core_crc,
+			  corecrc,
+			  bootparam.n_sect);
+	}
+	else
+	{
+		printf("CRC chech success.\n");
+	}
 
     /* call all the module init functions as the level order */
     init_module();

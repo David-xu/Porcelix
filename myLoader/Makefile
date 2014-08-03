@@ -2,6 +2,7 @@ sinclude config.mk
 
 LD := ld
 LDSCRIPT := myLoader.lds
+BOOTLDSCRIPT := boot/setup.lds
 DD := dd
 OBJCOPY := objcopy
 CC := gcc
@@ -9,9 +10,17 @@ CC := gcc
 # CORESRC_DIR := $(CURDIR)/core
 # IOSRC_DIR := $(CURDIR)/io
 
+bootsrc_c := boot/bootmain.c
+
+bootsrc_S := boot/boot.S
+
+bootsrc := $(bootsrc_c) $(bootsrc_S)
+
+bootobj := $(bootsrc_c:.c=.o) $(bootsrc_S:.S=.o)
+
 # all of the '.c' source file
-src_c := core/main.c core/cmdlist.c core/module.c core/net.c core/func.c core/task.c	\
-	drv/pci/core.c drv/pci/eth.c									\
+src_c := core/corestart16.c core/main.c core/cmdlist.c core/module.c core/net.c core/func.c core/task.c	\
+	drv/pci/core.c drv/pci/rtl8139.c								\
 	io/disp.c io/interrupt.c io/kbd.c io/hd.c						\
 	mm/memory.c mm/page.c											\
 	fs/block.c fs/fs.c fs/ext4.c fs/ext2.c							\
@@ -32,12 +41,16 @@ ASFLAGS = -I$(CURDIR) -Iinclude -march=i386 -m32
 CFLAGS = -Wall -O2 -I$(CURDIR) -Iinclude -fno-stack-protector -fno-builtin -march=i386 -m32
 
 # the target
-all: boot.bin core.bin
+all: boot/boot.bin core.bin
 
-boot.bin: boot.o
+boot/boot.bin: boot/boot.elf
 	$(OBJCOPY) -O binary $< $@
 
-boot.o: boot.S
+boot/boot.elf: $(bootobj)
+	$(LD) $^ -T $(BOOTLDSCRIPT) -o $@ -M > boot/boot.map
+
+$(bootobj):$(bootsrc)
+
 
 core.bin: core.elf
 	objcopy -O binary $< $@
@@ -48,13 +61,12 @@ core.elf: $(obj)
 $(obj):$(src)
 
 clean:
-	rm -f $(obj) core.elf core.map core.bin boot.o boot.bin *~ core/*~
-
-boot_install:
-	$(DD) if=boot.bin  of=$(DESTIMG_DIR) bs=512 count=1  conv=notrunc
+	rm -f $(obj) *~									\
+	core.elf core.bin core.map core/*~				\
+	$(bootobj) boot/boot.elf boot/boot.bin boot/boot.map boot/*~ 
 
 install:
-	$(DD) if=core.bin  of=$(DESTIMG_DIR) seek=1 bs=512  conv=notrunc
+	./tools/install $(DESTIMG_DIR) boot/boot.bin core.bin
 
 install_sdb:
 	$(DD) if=boot.bin  of=$(UDISK_DIR) bs=512 count=1
