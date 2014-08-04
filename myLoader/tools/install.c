@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
     memcpy((void *)((unsigned)sys + 512), core, core_size);
 
 	/* let's calc the CRC */
-	bootp->core_crc = crc32((void *)((unsigned)sys + 512 + 8192), core_size - 8192);
+	bootp->core_crc = crc32((void *)((unsigned)sys + 512 + 0x4000), core_size - 0x4000);
 	printf("core crc:0x%8x\n", bootp->core_crc);
 
     close(fd_sys);

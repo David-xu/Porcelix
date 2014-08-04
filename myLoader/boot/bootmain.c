@@ -81,7 +81,7 @@ void bootc_entry(void)
     __asm__ __volatile__ (
     	"jmp	%0, %1					\n\t"
         :
-        :"i"(IMGCORE_LOADADDR_BASE), "i"(IMGCORE_LOADADDR_OFFSET + 8192)
+        :"i"(IMGCORE_LOADADDR_BASE), "i"(IMGCORE_LOADADDR_OFFSET)
     );
 
 	/* make compiler happy */

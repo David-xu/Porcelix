@@ -35,8 +35,8 @@ void getbootparam()
 void loader_entry(void)
 {
 	/* we just check the loader buff */
-	u32 corecrc = crc32((void *)IMGCORE_LOADADDR,
-						bootparam.n_sect * HD_SECTOR_SIZE);
+	u32 corecrc = crc32((void *)(0x4000),
+						bootparam.n_sect * HD_SECTOR_SIZE - 0x4000);
 
     /* copy the boot param from boot.bin */
     getbootparam();

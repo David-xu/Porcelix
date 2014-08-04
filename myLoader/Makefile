@@ -38,7 +38,8 @@ obj := $(src_c:.c=.o) $(src_S:.S=.o)
 # -fno-stack-protector 不使用栈保护 这里是在编译自定义的printf时出现了undefined reference to `__stack_chk_fail'
 # -fno-builtin 不使用内建函数 否则无法编译名称为printf memcpy memset等等会被自动识别为内建函数的名称
 ASFLAGS = -I$(CURDIR) -Iinclude -march=i386 -m32
-CFLAGS = -Wall -O2 -I$(CURDIR) -Iinclude -fno-stack-protector -fno-builtin -march=i386 -m32
+CFLAGS = -Wall -O2 -I$(CURDIR) -Iinclude -fno-stack-protector -fno-builtin -fno-common -march=i386 -m32
+LDFLAGS = --oformat=elf_i386 -S
 
 # the target
 all: boot/boot.bin core.bin
