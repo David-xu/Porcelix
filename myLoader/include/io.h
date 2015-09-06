@@ -52,13 +52,19 @@ struct console{
     u16 (*read)(struct console *con, char *buf, u16 len);
     
     void *param;
+
+    void (*spcdisp)(struct console *con, char *buf, u16 len, u8 swch);
+	u8	spcdisp_swch;				/* 1: switch on, 0: switch off */
+	char spcbuff[32];				/* line 0, right hand */
 };
 
 void disp_init() _SECTION_(.init.text);
 
 int printf(char *fmt, ...);
+int conspc_printf(char *fmt, ...);
+void conspc_off(void);
 int sprintf(char *buf, char *fmt, ...);
-
+int vsprintf(char *buf, char *fmt, u32 *args);
 
 /* kbd get one char */
 int kbd_get_char();
