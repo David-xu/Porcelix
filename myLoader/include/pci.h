@@ -41,7 +41,9 @@
 typedef struct pcicfgdata {
     union {
         u32 word[16];
-        struct pcicfg {
+        struct pcicfg {
+
+
             u32     vendor  : 16;
             u32     device  : 16;
 
@@ -49,7 +51,9 @@ typedef struct pcicfgdata {
             u32     status  : 16;
 
             u32     revision: 8;
-            u32     class   : 24;
+			u32     prog	: 8;
+			u32     subclass: 8;
+            u32     class   : 8;
 
             u32     cls     : 8;    /* cache line size */
             u32     lt      : 8;    /* latency timer */
@@ -94,7 +98,8 @@ struct pci_dev;
 typedef struct pci_drv {
     struct list_head drvlist;
     char *drvname;
-
+
+
     /* device list which this driver supportted */
     vendor_device_t *vendev;
     u32     n_vendev;               /* element of the device_vendor */
