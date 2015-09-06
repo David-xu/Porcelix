@@ -12,6 +12,15 @@ typedef struct _netdev {
     u16     txpktidx;
     u16     rx_cur;
 
+	u16		n_rxdesc;			/* number of receive descriptor */
+	u16		rd_bufsize;			/* size of each receive buff */
+
+	u16		n_txdesc;			/* number of transmit descriptor */
+	u16		td_bufsize;			/* size of each transmit buff */
+
+	void	*rxdexc_ring;		/* receive descriptor ring buff */
+	void	*txdexc_ring;		/* transmit descriptor ring buff */
+
     void    *rxDMA;
     void    *txDMA;
     u8      macaddr[6];         /* device mac */
