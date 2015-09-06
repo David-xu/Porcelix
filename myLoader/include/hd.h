@@ -2,7 +2,6 @@
 #define _HD_H_
 
 #include "typedef.h"
-#include "fs.h"
 #include "device.h"
 #include "boot.h"
 
@@ -40,7 +39,8 @@ struct hd_info{
     u16     stop_cyl;
     u8      n_sect;         /* sect num */
     u8      rsv3;
-}__attribute__((packed));
+
+}__attribute__((packed));
 
 // extern struct hd_info hdinfo;
 
@@ -55,24 +55,6 @@ enum {
     SYSTYPE_OLDMINIX    = 0x80,
     SYSTYPE_LINUX       = 0x83,
 };
-
-/* this is the partition define struct.
- * 
- */
-struct partition_desc{
-    unsigned part_idx;
-    struct file_system *fs;         /* each partition mounted by one type of the fs.
-                                     * before the mount op, this field is NULL.
-                                     * after the umount op, this field is NULL.
-                                     */
-    device_t *dev;
-    /* some partition dependent data... */
-    void *param;
-};
-extern struct partition_desc hdpart_desc[];
-
-/* this is the cur selected partition. */
-extern struct partition_desc *cursel_partition;
 
 /* direct hd operation interface */
 #define HDPART_HD0_WHOLE      (0xF0)
