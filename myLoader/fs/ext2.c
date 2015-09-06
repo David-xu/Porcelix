@@ -11,6 +11,7 @@
 #include "device.h"
 #include "block.h"
 #include "debug.h"
+#include "partition.h"
 
 #if CONFIG_FSDEBUG_DUMP
 static void ext2_dump_inode(struct ext2_inode *ext2_inode)
@@ -99,16 +100,16 @@ static int ext2_load_sb(struct file_system *fs, void *param)
        1K(fsblock_buff01) +
        1K(fsblock_buff02) +
        ext2_info */
-    struct page *fsparam = page_alloc(BUDDY_RANK_8K);
+    void *fsparam = page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);
     if (fsparam == NULL)
     {
         return -1;
     }
     /* locate the ext2_info position */
-    struct ext2_info *info = (struct ext2_info *)((u32)(page2phyaddr(fsparam)) + 4 * 1024);
+    struct ext2_info *info = (struct ext2_info *)(fsparam + PAGE_SIZE);
     /* ext2_info parameter set */
     info->fsparam = fsparam;
-    info->sb = (struct ext2_superblock *)page2phyaddr(fsparam);
+    info->sb = (struct ext2_superblock *)fsparam;
 
     /* get the superblock, we have to locate the position */
     dev->driver->read(dev, 1, info->sb, 1);
@@ -289,7 +290,7 @@ static char *ext2_getcurdir(struct file_system *fs, void *param)
     return ext2_dirbuff;
 }
 
-static struct page* ext2_stat(struct file_system *fs, void *param)
+static stat_dentry_array_t* ext2_stat(struct file_system *fs, void *param)
 {
     struct partition_desc *part_desc = (struct partition_desc *)param;
     struct ext2_info *fsinfo = (struct ext2_info *)(part_desc->param);
@@ -317,20 +318,10 @@ static struct page* ext2_stat(struct file_system *fs, void *param)
     }
 
     /* get the dentry_array page rank */
-    count = (n_dentry * sizeof(dentry_t) + PAGE_SIZE - 1) / PAGE_SIZE;
-    DEBUG("count: %d\t\t", count);
-    if (count > (0x1 << get_high_bit(count)))
-    {
-        count = get_high_bit(count) + 1;
-    }
-    else
-    {
-        count = get_high_bit(count);
-    }
+    count = get_pagerank(n_dentry * sizeof(dentry_t));
     DEBUG("rank: %d\n", count);
     
-    struct page *dentry_array_page = page_alloc(count);
-    stat_dentry_array_t *stat_dentry = (stat_dentry_array_t *)page2phyaddr(dentry_array_page);
+    stat_dentry_array_t *stat_dentry = (stat_dentry_array_t *)page_alloc(count, MMAREA_NORMAL);
     stat_dentry->n_dentry = n_dentry;
     dentry_t *buffentry = stat_dentry->dentry_array;
     entryp = fsinfo->fsblock_buff01;      /* ext2 dentry buff */
@@ -350,7 +341,7 @@ static struct page* ext2_stat(struct file_system *fs, void *param)
         buffentry++;
     }
 
-    return dentry_array_page;
+    return stat_dentry;
 }
 
 static int ext2_changecurdir(struct file_system *fs, void *param, char *dirname)
@@ -358,6 +349,12 @@ static int ext2_changecurdir(struct file_system *fs, void *param, char *dirname)
     struct partition_desc *part_desc = (struct partition_desc *)param;
     struct ext2_info *fsinfo = (struct ext2_info *)(part_desc->param);
     char *subdirname[16], n_subdir;
+	int ret = 0;
+    stat_dentry_array_t *stat_dentry = ext2_stat(fs, param);
+    if (stat_dentry == NULL)
+    {
+        return -1;
+    }
 
     /*  */
     if (dirname[0] == '/')
@@ -380,12 +377,6 @@ static int ext2_changecurdir(struct file_system *fs, void *param, char *dirname)
             continue;
         }
         
-        struct page *buffpage = ext2_stat(fs, param);
-        if (buffpage == NULL)
-        {
-            return -1;
-        }
-        stat_dentry_array_t *stat_dentry = (stat_dentry_array_t *)page2phyaddr(buffpage);
         u32 entry_idx;
         dentry_t *listentry;
         for (entry_idx = 0; entry_idx < stat_dentry->n_dentry; entry_idx++)
@@ -409,14 +400,118 @@ static int ext2_changecurdir(struct file_system *fs, void *param, char *dirname)
         
         if (entry_idx == stat_dentry->n_dentry)
         {
-            page_free(buffpage);
-            return -1;
+            ret = -1;
+			goto ext2_changecurdir_ret;
         }
-        
-        page_free(buffpage);
     }
-    
-    return 0;
+
+ext2_changecurdir_ret:
+	page_free(stat_dentry);
+    return ret;
+}
+
+/* return the number of fsblock we have readed */
+static u32 ext2_readfile_ind(struct file_system *fs, void *param, u32 blkidx, u32 count, void *mem)
+{
+    struct partition_desc *part_desc = (struct partition_desc *)param;
+    struct ext2_info *info = (struct ext2_info *)(part_desc->param);
+
+	/* we need one page to store the indirect index */
+	u32 ret, *blkidxarray = (u32 *)page_alloc(BUDDY_RANK_4K, MMAREA_NORMAL);
+
+	ext2_load_block(fs, param, blkidx, blkidxarray);
+	
+	if (count > (info->blk_size / sizeof(u32)))
+		ret = info->blk_size / sizeof(u32);
+	else
+		ret = count;
+
+	/* now count is no need */
+	for (count = 0; count < ret; count++)
+	{
+		ext2_load_block(fs, param, blkidxarray[count], (void *)((u32)mem + count * info->blk_size));
+	}
+
+	page_free(blkidxarray);
+
+	return ret;
+}
+
+static u32 ext2_readfile_dind(struct file_system *fs, void *param, u32 blkidx, u32 count, void *mem)
+{
+    struct partition_desc *part_desc = (struct partition_desc *)param;
+    struct ext2_info *info = (struct ext2_info *)(part_desc->param);
+
+	/* we need one page to store the indirect index */
+	u32 ret, idx, *blkidxarray = (u32 *)page_alloc(BUDDY_RANK_4K, MMAREA_NORMAL);
+	ext2_load_block(fs, param, blkidx, blkidxarray);
+
+	if (count > ((info->blk_size / sizeof(u32)) * (info->blk_size / sizeof(u32))))
+		ret = (info->blk_size / sizeof(u32)) * (info->blk_size / sizeof(u32));
+	else
+		ret = count;
+
+	count = ret;
+
+	idx = 0;
+	while (count)
+	{
+		count -= ext2_readfile_ind(fs, param, blkidxarray[idx], count, mem);
+
+		mem = (void *)((u32)mem + (info->blk_size / sizeof(u32)) * info->blk_size);
+		idx++;
+	}
+	ASSERT(idx <= (info->blk_size / sizeof(u32)));
+	
+	page_free(blkidxarray);
+
+	return ret;
+}
+
+static int ext2_readfile(struct file_system *fs, void *param, inode_t *inode, void *mem)
+{
+    struct partition_desc *part_desc = (struct partition_desc *)param;
+    struct ext2_info *info = (struct ext2_info *)(part_desc->param);
+
+	u32 i, n_block, tmp = 0, addr = (u32)mem;
+
+	/* let's calc the number of fsblock this file occupy */
+	n_block = (inode->i_size + info->blk_size - 1) / info->blk_size;
+	
+	for (i = 0; i < EXT2_N_BLOCKS; i++)
+	{
+		/* direct index */
+		if (i < EXT2_IND_BLOCK)
+		{
+			ext2_load_block(fs, param, inode->i_block[i], (void *)addr);
+			tmp = 1;
+		}
+		/* index block */
+		else if (i == EXT2_IND_BLOCK)
+		{
+			tmp = ext2_readfile_ind(fs, param, inode->i_block[i], n_block, (void *)addr);
+		}
+		/* double index */
+		else if (i == EXT2_DIND_BLOCK)
+		{
+			tmp = ext2_readfile_dind(fs, param, inode->i_block[i], n_block, (void *)addr);
+		}
+		/* tri index */
+		else
+		{
+
+		}
+
+		addr += tmp * info->blk_size;
+		n_block -= tmp;
+
+		if (n_block == 0)
+			break;
+	}
+
+	ASSERT(i != EXT2_N_BLOCKS);
+
+	return 0;
 }
 
 struct file_system ext2_fs _SECTION_(.array.fs) = 
@@ -430,5 +525,6 @@ struct file_system ext2_fs _SECTION_(.array.fs) =
     .fs_getinode        = ext2_get_inode,
     .fs_changecurdir    = ext2_changecurdir,
     .fs_stat            = ext2_stat,
-};
 
+	.fs_readfile		= ext2_readfile,
+};
