@@ -1,18 +1,25 @@
 CFLAGS = -Wall -O2
 
-inst = install
+inst = install allsym
 
-src := install.c $(CURDIR)/../crc32/crc32.c
+pubsrc := $(CURDIR)/../lib/crc32/crc32.c
+pubobj := $(pubsrc:.c=.o)
+
+src := install.c allsym.c
 obj := $(src:.c=.o)
 
 CFLAGS = -Wall -O2 -I$(CURDIR)/../ -I$(CURDIR)/../include
 
 all:$(inst)
 
+$(pubobj):$(pubsrc)
 $(obj):$(src)
 
-$(inst):$(obj)
+install:install.o $(pubobj)
 	gcc -o $@ $^
 
+allsym:allsym.o $(pubobj)
+	gcc -o $@ $^
+	
 clean:
-	rm -rf $(obj) install
+	rm -rf $(pubobj) $(obj) $(inst)
