@@ -16,8 +16,7 @@
 #define DEBUG_HD(fmt, ...)
 #endif
 
-
-void dump_stack(void);
+void dump_stack(u32 ebp);
 void dump_ram(void *addr, u16 len);
 
 #endif
