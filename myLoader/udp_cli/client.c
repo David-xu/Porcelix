@@ -25,7 +25,7 @@ static int updcli_hello(int sock)
     size = recv(sock, recvbuff, sizeof(recvbuff), 0);
     if (size <= 0)
     {
-        printf("updcli_hello() size <= 0, size:%d\n", size);
+        printf("updcli_hello() size <= 0, size:%ld\n", size);
         return size;
     }
     recvbuff[size] = 0;
@@ -47,7 +47,7 @@ static int updcli_bye(int sock)
     size = recv(sock, recvbuff, sizeof(recvbuff), 0);
     if (size <= 0)
     {
-        printf("updcli_bye() size <= 0, size:%d\n", size);
+        printf("updcli_bye() size <= 0, size:%ld\n", size);
         return size;
     }
     recvbuff[size] = 0;
@@ -76,7 +76,7 @@ udpcli_sendandwait_retry:
 
     if (size <= 0)
     {
-        printf("udpcli_sendandwait() size <= 0, size:%d\n", size);
+        printf("udpcli_sendandwait() size <= 0, size:%ld\n", size);
         if (retry)
         {
             retry--;
@@ -183,9 +183,6 @@ static int updcli_sendfile(int sock, int argc, char *argv[])
     {
         printf("unknow argv:%s\n", argv[0]);
     }
-
-
-
 
     return 0;
 }
