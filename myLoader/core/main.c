@@ -18,16 +18,14 @@
 
 struct bootparam bootparam _SECTION_(.coreentry.param);
 
+struct bootparam *g_bootp;
+
 void getbootparam()
 {
-    u32 i;
     ASSERT(sizeof(bootparam) == BOOTPARAM_PACKADDR_LEN);
     ASSERT(bootparam.bootsectflag == 0xAA55);
 
-    for (i = 0; i < HD_PDTENTRY_NUM; i++)
-    {
-        hd0_pdt[i] = bootparam.hd_pdt[i];
-    }
+	g_bootp = &bootparam;
 }
 
 // void loader_entry(void) __attribute__((noreturn));
@@ -36,13 +34,18 @@ void loader_entry(void)
 {
 	/* we just check the loader buff */
 	u32 corecrc = crc32((void *)(0x4000),
-						bootparam.n_sect * HD_SECTOR_SIZE - 0x4000);
+						bootparam.n_sect * HD_SECTOR_SIZE - 0x3000);
+	bootparam.head4k_crc = crc32((void *)0, 0x1000);
 
     /* copy the boot param from boot.bin */
     getbootparam();
 
     interrupt_init();		/* after that we enable INT */
+	trap_init();			
     disp_init();            /* after that we can do some screen print... */
+	mem_init();				/* we need to init all memsystem first */
+
+	printf("booting from 0x%#2x\n", bootparam.boot_dev);
 	
     /* check the crc */
 	if (bootparam.core_crc != corecrc)
