@@ -7,38 +7,87 @@
 #include "memory.h"
 #include "section.h"
 #include "hd.h"
+#include "partition.h"
 #include "module.h"
 #include "net.h"
 #include "task.h"
 
 unsigned n_command = 0;
 
-int testtask(void *param)
-{
-    int count = 0;
-    // while (1)
-    {
-        printf("param:0x%#8x, count:%d\n", (u32)param, count++);
-        schedule();
-    }
 
-    return 0;
+static void cmd_dispcpu_opfunc(char *argv[], int argc, void *param)
+{
+	u32 cur_cs, cur_ds, cur_es, cur_ss, cur_esp;
+	__asm__ __volatile__ (
+		"movl	%%cs, %%eax			\n\t"
+		"movl	%%eax, %0			\n\t"
+
+		"movl	%%ds, %%eax			\n\t"
+		"movl	%%eax, %1			\n\t"
+		"movl	%%es, %%eax			\n\t"
+		"movl	%%eax, %2			\n\t"
+
+		"movl	%%ss, %%eax			\n\t"
+		"movl	%%eax, %3			\n\t"
+
+		"movl	%%esp, %4			\n\t"
+		:"=m"(cur_cs), "=m"(cur_ds), "=m"(cur_es), 
+		 "=m"(cur_ss), "=m"(cur_esp)
+		:
+		:"%eax"
+	);
+
+	printf("current regs:\n"
+		   "cs: 0x%#4x, ds: 0x%#4x, es: 0x%#4x, ss: 0x%#4x\n"
+		   "esp: 0x%#8x\n"
+		   "CR0: 0x%#8x, CR3: 0x%#8x\n",
+		   cur_cs, cur_ds, cur_es, cur_ss,
+		   cur_esp,
+		   getCR0(), getCR3());
+}
+
+struct command cmd_dispcpu _SECTION_(.array.cmd) =
+{
+    .cmd_name   = "dispcpu",
+    .info       = "Display CPU info",
+    .op_func    = cmd_dispcpu_opfunc,
+};
+
+asmlinkage int testtask(struct pt_regs *regs, void *param)
+{
+	printf("testtask()  0x%#8x\n", (u32)param);
+	exec_test();
+	return 0;
 }
 
 static void cmd_test_opfunc(char *argv[], int argc, void *param)
 {
 #if 0
-    /* rdmsr */
-    regbuf_u regbuf;
-    regbuf.reg.ecx = 0x1b;
-    x86_rdmsr(&regbuf);
+	u32 base;
+	char *name = allsym_resolvaddr(str2num(argv[1]), &base);
+	printf("addr: 0x%#8x --> %s base 0x%#8x\n", str2num(argv[1]), name, base);
 
-    printf("edx:0x%#8x, eax:0x%#8x\n", regbuf.reg.edx, regbuf.reg.eax);
+	kernel_thread(testtask, (void *)0x12345678);
+#else
+	u32 *p;
+	memcache_t *testcache1 = memcache_create(16, 0, "testcache");
+	memcache_t *testcache2 = memcache_create(44, 1, "testcache");
+	u32 i = 0x80000;
+	while (i--)
+	{
+		p = (u32 *)memcache_alloc(testcache1);
+		*p = i * 0x3;
+		p = (u32 *)memcache_alloc(testcache2);
+		*p = i * 0x6;
+	}
+	dump_freepage();
+	
+	memcache_destroy(testcache1);
+	memcache_destroy(testcache2);
 #endif
-    kernel_thread(testtask, (void *)0x11223344);
 }
 
-struct command cmd_test _SECTION_(.array.cmd) =
+struct command cmd_test _SECTION_(.array.cmd) =
 {
     .cmd_name   = "test",
     .info       = "This is tEst function.",
@@ -59,7 +108,7 @@ static void cmd_help_opfunc(char *argv[], int argc, void *param)
     }
 }
 
-struct command cmd_help _SECTION_(.array.cmd) =
+struct command cmd_help _SECTION_(.array.cmd) =
 {
     .cmd_name   = "help",
     .info       = "List all buildin commands.",
@@ -82,7 +131,7 @@ static void cmd_parse_impl(char *cmd)
         struct command *cmd = (struct command *)cmddesc_array + i;
         u32 argv01_len = strlen(argv[0]);
         u32 cmd_len = strlen(cmd->cmd_name);
-        if (argv01_len > cmd_len)
+        if (argv01_len != cmd_len)
             continue;
         if (0 == memcmp(argv[0], cmd->cmd_name, argv01_len))
         {
@@ -115,7 +164,7 @@ static char* cmd_get_title(void)
     return title;
 }
 
-int cmd_loop(void *param)
+asmlinkage int cmd_loop(struct pt_regs *regs, void *param)
 {
     int i, getch = 0;
     u16 pos = 0;
