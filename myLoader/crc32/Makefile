@@ -1,5 +1,5 @@
 GCC=gcc
-inc=$(CURDIR)/../include
+inc=$(CURDIR)/../../include
 CFLAGS=-I$(inc) -Wall -O2 -g
 
 
