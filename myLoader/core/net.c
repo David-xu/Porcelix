@@ -50,7 +50,8 @@ int arp_insert(u8 *ipaddr, u8 *macaddr)
     {
         if (arpcache.list[count].valid == 0)
         {
-            arpcache.list[count].valid = 1;
+            arpcache.list[count].valid = 1;
+
             memcpy(arpcache.list[count].ip, ipaddr, 4);
             memcpy(arpcache.list[count].mac, macaddr, 6);
             return 0;
@@ -256,6 +257,7 @@ static void efproc(ethframe_t *ef)
         l4len = getipv4totallen(ipv4header) - l3headerlen;
         if (0 != checksum(0, ipv4header, l3headerlen))
         {
+        	printf("ipv4 checksum err.\n");
             return;
         }
 
@@ -324,6 +326,8 @@ static void efproc(ethframe_t *ef)
         }
         default:
             /* the protocol we don't support */
+			printf("IPv4 unknow protocol:0x%#4x\n", ipv4header->protocol);
+			dump_ram(ef->buf, ef->len);
             break;
         }
 
@@ -335,7 +339,7 @@ static void efproc(ethframe_t *ef)
 }
 
 /* pending frame procedure, process all of the rx ethframe */
-int do_fbproc(void *param)
+asmlinkage int do_fbproc(struct pt_regs *regs, void *param)
 {
     ethframe_t *ef;
     struct list_head *first_ef;
@@ -361,7 +365,7 @@ int do_fbproc(void *param)
         
         efproc(ef);
 
-        page_free(phyaddr2page(ef));
+        page_free(ef);
     }
 
     /* never reach here */
@@ -464,7 +468,8 @@ int udp_send(sock_context_t *sockctx, void *buff, u16 len)
         return -1;
     }
     memcpy(ethiiheader->srcaddr, sockctx->netdev->macaddr, 6);
-    ethiiheader->ethtype = SWAP_2B(L2TYPE_IPV4);
+    ethiiheader->ethtype = SWAP_2B(L2TYPE_IPV4);
+
 
     /* send the pkt */
     sockctx->netdev->tx(sockctx->netdev, ethiiheader, len);
@@ -481,8 +486,8 @@ static void __init netproc_init(void)
         arpcache.list[count].valid = 0;
     }
     
-    ipaddr[0] = 192;
-    ipaddr[1] = 168;
+    ipaddr[0] = 220;
+    ipaddr[1] = 1;
     ipaddr[2] = 1;
     ipaddr[3] = 20;
 
@@ -492,7 +497,7 @@ static void __init netproc_init(void)
     ipmask[3] = 0;
 
     /* this the ethframe proc task */
-    kernel_thread(do_fbproc, NULL);
+	kernel_thread(do_fbproc, NULL);
 }
 
 module_init(netproc_init, 3);
