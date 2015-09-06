@@ -4,17 +4,19 @@
 #define CONFIG_32
 // #define CONFIG_64
 
+// #define	CONFIG_SMP
+
 #define HD_SECTOR_SIZE              (512)
 
 /******************************************************************************/
 /*                   used for loader                                          */
 /******************************************************************************/
 /* core begin sector num  */
-#define IMGCORE_OFFSET              (1)
+// #define IMGCORE_OFFSET              (1)
 /* core img load addr */
-#define IMGCORE_LOADADDR			(0x48000)
-#define	IMGCORE_LOADADDR_OFFSET     (IMGCORE_LOADADDR & 0xF)				/* offset */
-#define IMGCORE_LOADADDR_BASE		(IMGCORE_LOADADDR >> 4)					/* ds */
+#define IMGCORE_LOADADDR			(0x30000)
+#define	IMGCORE_LOADADDR_OFFSET     (IMGCORE_LOADADDR & 0xFFFF)				/* offset */
+#define IMGCORE_LOADADDR_BASE		((IMGCORE_LOADADDR >> 16) << 12)		/* ds */
 
 #if 0
 /* int 0x13 al=0x42
@@ -41,6 +43,11 @@
 /* segment desc */
 #define SYSDESC_CODE                (0x10)
 #define SYSDESC_DATA                (0x18)
+#define USRDESC_CODE                (0x20)
+#define USRDESC_DATA                (0x28)
+#define	PUBDESC_TSS					(0x30)
+#define	REALMODE_CS					(0x38)
+#define	REALMODE_DS					(0x40)
 
 /* system init sp */
 #define SYSINIT_SP                  (0xA0000)
@@ -57,7 +64,9 @@
 /******************************************************************************
  *                           Used for MM                                      *
  ******************************************************************************/
-#define MM_HOLEAFTEL_SYSRAM         (2048)
+#define MM_NORMALMEM_RANGE			(256 * 1024 * 1024)
+#define MM_HOLEAFTER_SYSRAM			(4096)
+#define MM_RANGERESOURCE_MAXNUM		(16)
 
 /******************************************************************************
  *                           Used for FS                                      *
