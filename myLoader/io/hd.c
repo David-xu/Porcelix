@@ -12,6 +12,7 @@
 #include "device.h"
 #include "block.h"
 #include "module.h"
+#include "partition.h"
 
 /* we get the harddisk infomation in the core start session. */
 struct hd_info hd0_info _SECTION_(.coreentry.param);
@@ -46,17 +47,18 @@ static inline int wait_DRQ(void)
 }
 
 
-void hd_int(void)
+void hd_int(struct pt_regs *regs, void *param)
 {
     u16 n_hword, *data;
 
     DEBUG_HD("hd int trace... "
-             "hd_cur_rq:0x%#8x PORT_HD_STAT_COMMAND:0x#2x\n",
+             "hd_cur_rq:0x%#8x PORT_HD_STAT_COMMAND:0x%#2x\n",
              (u32)hd_cur_rq,
              inb(PORT_HD_STAT_COMMAND));
 
     if (hd_cur_rq == NULL)
         return;
+
 
     wait_DRQ();
 
@@ -102,7 +104,7 @@ void hd_int(void)
 
 }
 
-/*
+/*
  * we call this function to transform the
  * partition logicsector idx to the CHS.
  * This functions need to know the harddisc infomation
@@ -419,7 +421,7 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
     }
 }
 
-struct command cmd_hdop _SECTION_(.array.cmd) =
+struct command cmd_hdop _SECTION_(.array.cmd) =
 {
     .cmd_name   = "hdop",
     .info       = "Harddisk operation. -m [partition], -s [partition], -d, -r [sect] [addr], -w [sect] [addr].",
@@ -473,28 +475,39 @@ device_t *gethd_dev(u8 part)
     return &(hd0_logicpart_devlist[part]);
 }
 
+static void hd_readpdt(void)
+{
+#if 0
+    for (i = 0; i < HD_PDTENTRY_NUM; i++)
+    {
+        hd0_pdt[i] = bootparam.hd_pdt[i];
+    }
+#else
+	/* we read the hd partition table from HD directly */
+	device_t *hd0 = gethd_dev(HDPART_HD0_WHOLE);
+	void *tmppage = page_alloc(BUDDY_RANK_4K, MMAREA_NORMAL);
+	hd0->driver->read(hd0, 0, tmppage, 1);
+	memcpy(hd0_pdt,
+		   tmppage + 512 - 2 - 4 * sizeof(struct hd_dptentry),
+		   4 * sizeof(struct hd_dptentry));
+	page_free(tmppage);
+#endif
+}
 
 static void __init hd_init(void)
 {
-    u8 intmask;
-
     hd_cur_rq = NULL;
 
-    _cli();
-
-    /* OCW1, set 8259A slaver INTMASK reg */
-    intmask = inb(PORT_8259A_SLAVER_A1);    /* the INTMAST reg is the 0x21 and 0xA1 */
-    outb(intmask & (~0x40), PORT_8259A_SLAVER_A1);
-    
-    set_idt(X86_VECTOR_IRQ_2E, hd_int_entrance);        /* harddisk interrupt */
-
-    _sti();
-    
+	/* harddisk interrupt */
+	interrup_register(X86_VECTOR_IRQ_2E - X86_VECTOR_IRQ_20,
+					  hd_int, NULL);    
     u32 i;
     for (i = 0; i < HD_PDTENTRY_NUM; i++)
     {
         hdpart_desc[i].dev = hd0_logicpart_devlist + i;
     }
+
+	hd_readpdt();
 }
 
 module_init(hd_init, 2);
