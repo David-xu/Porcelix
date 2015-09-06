@@ -59,7 +59,7 @@ static u32 rtl8139_txdbg = 0;
 
 
 #define RX_BUF_LEN          2048
-static void realtek8139_isr(void *param)
+static void realtek8139_isr(struct pt_regs *regs, void *param)
 {
     struct pci_dev *dev = (struct pci_dev *)param;
     netdev_t *rtk8139 = (netdev_t *)(dev->param);
@@ -81,10 +81,9 @@ static void realtek8139_isr(void *param)
     {
         while ((inb(dev->bar_io + PCI_RTL8139_CR_OFFSET) & 0x01) == 0)
         {
-            ethframe_t *new_ef;
+            ethframe_t *new_ef = (ethframe_t *)page_alloc(BUDDY_RANK_4K, MMAREA_NORMAL);
             u32 rxstatus = *((u32 *)((u32)rtk8139->rxDMA + rtk8139->rx_cur));
 
-            new_ef = (ethframe_t *)page2phyaddr(page_alloc(BUDDY_RANK_4K));
             new_ef->netdev = rtk8139;
             new_ef->len = (u16)(rxstatus >> 16);
             new_ef->buf = new_ef->buf + 128;    /*  */
@@ -199,8 +198,8 @@ static int realtek8139_devinit(struct pci_dev *dev)
     rtk8139->dev = dev;
     rtk8139->txpktidx = 0;
     rtk8139->rx_cur = 0;
-    rtk8139->rxDMA = (void *)0x70000;            /* 8K */
-    rtk8139->txDMA = (void *)0x72000;            /* 2K * 4 */
+    rtk8139->rxDMA = page_alloc(BUDDY_RANK_8K, MMAREA_LOW1M);			/* 8K in low 1M, used by DMA */
+    rtk8139->txDMA = page_alloc(BUDDY_RANK_8K, MMAREA_LOW1M);			/* 2K * 4 in low 1M, used by DMA */
     rtk8139->tx = realtek8139_tx;
     dev->param = rtk8139;
 
@@ -327,7 +326,7 @@ static void cmd_rtl8139stat_opfunc(char *argv[], int argc, void *param)
     }
 }
 
-struct command cmd_rtl8139stat _SECTION_(.array.cmd) =
+struct command cmd_rtl8139stat _SECTION_(.array.cmd) =
 {
     .cmd_name   = "rtl8139stat",
     .info       = "RTL8139 statistic. rxcatch [pkt num], txcatch [pkt num].",
