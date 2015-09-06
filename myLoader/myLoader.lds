@@ -1,36 +1,41 @@
+ENTRY(core_entry)
+
 PHDRS
 {
-	initseg PT_LOAD AT(ADDR(.initsect));
-	coreseg PT_LOAD AT(ADDR(.coresect));
+	initseg PT_LOAD AT(ADDR(.initsect)) FLAGS(7);
+	coreseg PT_LOAD AT(ADDR(.coresect)) FLAGS(7);
 }
 
 SECTIONS
 {
+	. = 0x1000;
+
 	.initsect : AT(ADDR(.initsect))
 	{
-		*(.init.start)			/* causetion, only those startup codes in the corestart.S may in this section. */
-		*(.init.text)
-		
+		*(.init.start)		/* causetion, only those startup codes in the corestart.S may in this section. */
 
+		*(.init.data)
+		*(.coreentry.param)	
+		
 		gdt_table = .;		/* make the symbol gdt_table */
 		*(.gdt.data)
 		idt_table = .;		/* make the symbol idt_table */
 		*(.idt.data)
-
-		*(.init.data)
-
-		*(.coreentry.param)
-
-		symbol_inittext_end = .;/* we want to know the size of section '.init' */
 	} : initseg
-
+	
+	symbol_inittext_end = .;/* we want to know the size of section '.initsect' */
+	
 	. = 0x4000;
 
-	.coresect : AT(ADDR(.coresect))
+	.text : AT(ADDR(.text))
 	{
+		*(.init.text)
 		*(.text)
-		*(.rodata*)
 
+	} : coreseg						/* if we don't specify the PHDRS, ld will used the PHDRS before */
+	
+	.rodata : AT(ADDR(.rodata))
+	{
 		. = ALIGN(0x40);
 		fsdesc_array = .;	/* all fs desc */
 		*(.array.fs)		/* take care: ld align the struct(which larger than 32 byte) as 32 byte, so we need to take some pad */
@@ -71,14 +76,24 @@ SECTIONS
 		moduleinit_array_7 = .;
 		*(.array.moduleinit_7)
 		moduleinit_array_7_end = .;
-
+		
+		syminfo_begin = .;
+		*(SORT(.symtbl_info_*))
+		syminfo_end = .;
+		
+		*(.rodata*)
+	}
+	
+	.data : AT(ADDR(.data))
+	{
 		*(.data)
 
 		*(.bss)
 
-		symbol_sys_end = .;	/* this is the sys end position */
 	} : coreseg
 
+	symbol_sys_end = .;	/* this is the sys end position */
+	
 	/* Sections to be discarded */
 	/DISCARD/ : { *(.exit.text) *(.cpuexit.text) *(.memexit.text) *(.exit.data) *(.cpuexit.data) *(.cpuexit.rodata) *(.memexit.data) *(.memexit.rodata) *(.exitcall.exit) *(.discard) *(.discard.*) }
 	/DISCARD/ : { *(.eh_frame) }
