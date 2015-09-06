@@ -2,7 +2,7 @@
 #include "config.h"
 #include "boot.h"
 
-__asm__(".code16gcc\n");
+asm(".code16gcc\n");
 
 
 
@@ -22,28 +22,31 @@ struct DiskAddressPacket volatile da =
 {
 	.PacketSize = sizeof(struct DiskAddressPacket),
 	.Reserved = 0,
-	.BlockNum = IMGCORE_OFFSET,
+	// .BlockNum = IMGCORE_OFFSET,
 };
 
 void bootc_entry () __attribute__ ((noreturn));
 
 void bootc_entry(void)
 {
-	u32 coreaddr = IMGCORE_LOADADDR;
+	u32 coreaddr = IMGCORE_LOADADDR + 0x1000;
 	u16 n_sect, cn;
 	struct bootparam *bp = (struct bootparam *)(0x200 - sizeof(struct bootparam));
-
+	if (bp->boot_dev == 0x80)
+		da.BlockNum = bp->core_lba;
+	else
+		da.BlockNum = bp->core_lba / 4;
 
 	/* save the boot_dev id, which is in dl now */
+#if 0
     __asm__ __volatile__ (
     	"mov	%%dl, %0		\n\t"
     	:"=m"(bp->boot_dev)
 	);
-	
+#endif
 
     /* we want to load the core.bin
        addr: IMGCORE_LOADADDR_BASE:IMGCORE_LOADADDR_OFFSET */
-	
 	n_sect = bp->n_sect;
 	while (n_sect)
 	{
@@ -55,8 +58,13 @@ void bootc_entry(void)
 		{
 			cn = n_sect;
 		}
-		da.BlockCount = cn;
+		if (bp->boot_dev == 0x80)
+			da.BlockCount = cn;
+		else
+			da.BlockCount = (cn + 3) / 4;
+
 		da.BufferAddr = ((coreaddr & 0xFFFF0000) << 12) | (coreaddr & 0xFFFF);
+		
 		/* int 0x13 ah=0x42 */
 		__asm__ __volatile__ (
 			"pusha					\n\t"
@@ -65,23 +73,28 @@ void bootc_entry(void)
 			"popa					\n\t"
 			:
 			:"S"(&da), "d"(bp->boot_dev)
+			:"%ax"			/* ax has been used, need to notify the gcc */
 		);
 		barrier();
 
 		n_sect -= cn;
 		coreaddr += cn * HD_SECTOR_SIZE;
-		da.BlockNum += cn;
+		if (bp->boot_dev == 0x80)
+			da.BlockNum += cn;
+		else
+			da.BlockNum += cn / 4;
 	}
-	
 	/* now coreaddr is useless,      (H16 bit)                 (L16 bit)
 	   32bit store the entryaddr: IMGCORE_LOADADDR_BASE:IMGCORE_LOADADDR_OFFSET */
 	// coreaddr = IMGCORE_LOADADDR;
 
-    /* jump to the core entry */
+    /* jump to the core entry
+     * the macro CONFIG_CORE_ENTRYADDR defined by gcc compile param
+	 */
     __asm__ __volatile__ (
     	"jmp	%0, %1					\n\t"
         :
-        :"i"(IMGCORE_LOADADDR_BASE), "i"(IMGCORE_LOADADDR_OFFSET)
+        :"i"(IMGCORE_LOADADDR_BASE), "i"(IMGCORE_LOADADDR_OFFSET + CONFIG_CORE_ENTRYADDR)
     );
 
 	/* make compiler happy */
