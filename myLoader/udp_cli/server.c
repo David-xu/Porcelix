@@ -146,7 +146,7 @@ static void cmd_udpclireset_opfunc(char *argv[], int argc, void *param)
     udpcli_reset(&udpcli_sockctx);
 }
 
-struct command cmd_udpclireset _SECTION_(.array.cmd) =
+struct command cmd_udpclireset _SECTION_(.array.cmd) =
 {
     .cmd_name   = "udpcli_reset",
     .info       = "reset the udpcli.",
