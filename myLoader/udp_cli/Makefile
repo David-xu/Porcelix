@@ -16,4 +16,4 @@ $(client):$(obj)
 	gcc -o $@ $^
 
 clean:
-	rm -rf $(obj) $(client)
+	rm -rf $(obj) $(client) *.img
