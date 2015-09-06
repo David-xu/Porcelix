@@ -1,547 +1,288 @@
+#include "typedef.h"
+#include "debug.h"
 #include "io.h"
-#include "ml_string.h"
-#include "assert.h"
+#include "interrupt.h"
+#include "desc.h"
+#include "section.h"
+#include "command.h"
+#include "module.h"
 
-#define VGA_RSELECT         (0x03D4)
-#define VGA_RDATA           (0x03D5)
-#define VGA_MODE            (0x03D8)
-#define VGA_COPANEL         (0x03D9)
+/* kbd controller port */
+#define PORT_KBD_CMD                (0x60)
+#define PORT_KBD_CONTROL_CMD        (0x64)
+#define PORT_STATMASK_OUTPORT_FULL  (0x1)
+#define PORT_STATMASK_INPORT_FULL   (0x2)
 
-#define VGA_RAMBASE         (0xb8000)
+/* some kbd command, send these cmd by outb to 0x64 */
+#define KBDCTRL_CMD_INPORT_R    (0xC0)
+#define KBDCTRL_CMD_OUTPORT_R   (0xD0)
+#define KBDCTRL_CMD_OUTPORT_W   (0xD1)
 
-#define VGA_TABLE_WIDTH     (0x08)
+/* some special scan code */
+#define KBD_SCANCODE_LEFTSHIFT  (0x2A)
+#define KBD_SCANCODE_RIGHTSHIFT (0x36)
 
-struct vga_param{
-    u16 x_pos, y_pos, x_max, y_max;
+#define KBD_SCANCODE_CAP        (0x3A)
 
-    void (*screen_clear)(struct vga_param *param);
-    void (*set_cursal)(struct vga_param *param);
+
+static u8 kbd_shiftup_map[] =
+{
+    /* 0x00 ~ 0x0F */
+    0x00, 0x00,  '1',  '2',  '3',  '4',  '5',  '6',
+     '7',  '8',  '9',  '0',  '-',  '=', '\b', '\t',
+    /* 0x10 ~ 0x1F */
+     'q',  'w',  'e',  'r',  't',  'y',  'u',  'i',
+     'o',  'p',  '[',  ']', '\n', 0x00,  'a',  's',
+    /* 0x20 ~ 0x2F */
+     'd',  'f',  'g',  'h',  'j',  'k',  'l',  ';',
+    '\'',  '`', 0x00, '\\',  'z',  'x',  'c',  'v',
+    /* 0x30 ~ 0x3F */
+     'b',  'n',  'm',  ',',  '.',  '/', 0x00, 0x00,
+    0x00,  ' ', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x40 ~ 0x4F */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x50 ~ 0x5F */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x60 ~ 0x6F */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x70 ~ 0x7F */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-static void vga_bks(struct console *con)
+static u8 kbd_shiftdown_map[] =
 {
-    struct vga_param *param = con->param;
-    u16 *dstpix;
-    if (param->x_pos == 0)
+    /* 0x00 ~ 0x0F */
+    0x00, 0x00,  '!',  '@',  '#',  '$',  '%',  '^',
+     '&',  '*',  '(',  ')',  '_',  '+', '\b', '\t',
+    /* 0x10 ~ 0x1F */
+     'Q',  'W',  'E',  'R',  'T',  'Y',  'U',  'I',
+     'O',  'P',  '{',  '}', '\n', 0x00,  'A',  'S',
+    /* 0x20 ~ 0x2F */
+     'D',  'F',  'G',  'H',  'J',  'K',  'L',  ':',
+     '"',  '~', 0x00,  '|',  'Z',  'X',  'C',  'V',
+    /* 0x30 ~ 0x3F */
+     'B',  'N',  'M',  '<',  '>',  '?', 0x00, 0x00,
+    0x00,  ' ', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x40 ~ 0x4F */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x50 ~ 0x5F */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x60 ~ 0x6F */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    /* 0x70 ~ 0x7F */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+/* read until the 8042's buff get empty
+   I just copy the code from the linux kernel :) */
+#define MAX_8042_LOOPS	100000
+#define MAX_8042_FF	32
+static int empty_8042(void)
+{
+	u8 status;
+	int loops = MAX_8042_LOOPS;
+	int ffs   = MAX_8042_FF;
+
+	while (loops--) {
+		io_delay();
+
+		status = inb(PORT_KBD_CONTROL_CMD);
+		if (status == 0xff) {
+			/* FF is a plausible, but very unlikely status */
+			if (!--ffs)
+				return -1; /* Assume no KBC present */
+		}
+		if (status & 1) {
+			/* Read and discard input data */
+			io_delay();
+			(void)inb(PORT_KBD_CMD);
+		} else if (!(status & 2)) {
+			/* Buffers empty, finished! */
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
+
+#define KBD_RAWINPUTBUFF_SIZE   (256)
+
+/* this is the kbd raw input buff */
+struct kbd_rawinput_buff{
+    u8      buff[KBD_RAWINPUTBUFF_SIZE];
+    u16      readpos, writepos;          // if readpos == writepos, it means no input data
+}kbd_rawinput_buff;
+
+static void kbd_rawbuff_insert(u8 value)
+{
+    kbd_rawinput_buff.buff[kbd_rawinput_buff.writepos++] = value;
+    // modify the write pos
+    kbd_rawinput_buff.writepos %= KBD_RAWINPUTBUFF_SIZE;
+
+    // if buff full then drop the most old char
+    if (kbd_rawinput_buff.writepos == kbd_rawinput_buff.readpos)
     {
-        if (param->y_pos == 0)
-        {
+        kbd_rawinput_buff.readpos = (kbd_rawinput_buff.readpos + 1) % KBD_RAWINPUTBUFF_SIZE;
+    }
+}
+
+/* return -1 means no data in rawbuff */
+int kbd_get_char()
+{
+    int ret = 0;
+    if (kbd_rawinput_buff.readpos == kbd_rawinput_buff.writepos)
+    {
+        return -1;
+    }
+
+    ret = kbd_rawinput_buff.buff[kbd_rawinput_buff.readpos];
+
+    // modify the read pos
+    kbd_rawinput_buff.readpos += 1;
+    kbd_rawinput_buff.readpos %= KBD_RAWINPUTBUFF_SIZE;
+
+    return ret;
+}
+
+u8 kbdctrl_outport_r(void)
+{
+    outb(KBDCTRL_CMD_OUTPORT_R, PORT_KBD_CONTROL_CMD);
+    io_delay();
+    return inb(PORT_KBD_CMD);
+}
+
+void kbdctrl_outport_w(u8 cmd)
+{
+	empty_8042();
+
+    outb(KBDCTRL_CMD_OUTPORT_W, PORT_KBD_CONTROL_CMD);
+
+	empty_8042();
+
+    outb(cmd, PORT_KBD_CMD);
+}
+
+void kbd_int(struct pt_regs *regs, void *param)
+{
+	/* need to disable and enable the kbd controller, copied from linux kernel */
+	__asm__ __volatile__ (
+		"inb	$0x61, %%al				\n\t"
+		"jmp	1f						\n\t"
+		"1:		jmp		2f				\n\t"
+		"2:		orb		$0x80, %%al		\n\t"
+		"jmp	3f						\n\t"
+		"3:		jmp		4f				\n\t"
+		"4:		outb	%%al, $0x61		\n\t"
+		"jmp	5f						\n\t"
+		"5:		jmp		6f				\n\t"
+		"6:		andb	$0x7F, %%al		\n\t"
+		"outb	%%al, $0x61				\n\t"
+		:
+		:
+		:"memory"
+	);
+
+    static u8 volatile state_cap = 0, state_shift = 0;
+    
+    /* read the scancode from the kbd register */
+    u8 scancode = inb(PORT_KBD_CMD);
+
+    DEBUG("%#2x.", scancode);
+
+    /* process the left and right 'SHIFT' */
+    if (((scancode & (~0x80)) == KBD_SCANCODE_LEFTSHIFT) ||
+        ((scancode & (~0x80)) == KBD_SCANCODE_RIGHTSHIFT))
+    {
+        /* key up */
+        if (scancode & 0x80)
+        {
+            state_shift = 0;
+        }
+        else    /* key down */
+        {
+            state_shift = 1;
+        }
+        return;
+    }
+
+    /* process the 'CAP' */
+    if ((scancode & (~0x80)) == KBD_SCANCODE_CAP)
+    {
+        if ((scancode & 0x80) == 0)
+        {
+            state_cap ^= 1;         // change the cap state
+        }
+        return;
+    }
+
+    if ((scancode & 0x80) == 0)
+    {
+        u8 ins_ch;
+        if (state_shift)
+        {
+            ins_ch = kbd_shiftdown_map[scancode & (~0x80)];
+        }
+        else
+        {
+            ins_ch = kbd_shiftup_map[scancode & (~0x80)];
+        }
+
+        if (ins_ch == 0)
+        {
             return;
         }
-        param->x_pos = param->x_max - 1;
-        param->y_pos--;
-    }
-    else
-    {
-        param->x_pos--;
-    }
 
-    dstpix = (u16 *)(VGA_RAMBASE + ((param->x_max * param->y_pos + param->x_pos) << 1));
-    *dstpix = 0x720;
-
-    param->set_cursal(param);
-}
-
-static void vga_set_cursal(struct vga_param *param)
-{
-    // set the cursal r14 r15
-    u16 cur_cursal = param->x_max * param->y_pos + param->x_pos;
-    outb(14, VGA_RSELECT);
-    outb((u8)(cur_cursal >> 8), VGA_RDATA);
-    outb(15, VGA_RSELECT);
-    outb((u8)(cur_cursal >> 0), VGA_RDATA);
-}
-
-static void vga_screen_clear(struct vga_param *param)
-{
-    memset_u16((u16 *)VGA_RAMBASE, 0x720, (param->x_max * param->y_max));
-
-    param->x_pos = 0;
-    param->y_pos = 0;
-
-    // set the cursal r14 r15
-    param->set_cursal(param);
-}
-
-static void vga_console_write(struct console *con, char *str, u16 len)
-{
-    struct vga_param *param = con->param;
-    u16 i, j, k, *srcpix, *dstpix;
-    char ch;
-    /*  */
-    while (((ch = *str++) != '\0') && (len-- != 0))
-    {
-        /*  */
-        if ('\n' == ch)
+        if (state_cap)
         {
-            param->x_pos = 0;
-            (param->y_pos)++;
-        }
-        else if ('\b' == ch)
-        {
-            vga_bks(con);
-        }
-        else if ('\t' == ch)
-        {
-            param->x_pos = (param->x_pos + VGA_TABLE_WIDTH - 1) & (~(VGA_TABLE_WIDTH - 1));
-
-            if (param->x_pos >= param->x_max)
+            if ((ins_ch >= 'a') && (ins_ch <= 'z'))
             {
-                (param->y_pos)++;
-                param->x_pos = 0;
+                ins_ch += 'A' - 'a';
             }
-        }
-        else
-        {
-            dstpix = (u16 *)(VGA_RAMBASE + ((param->x_max * param->y_pos + param->x_pos) << 1));
-
-            *dstpix = ((0x7 << 8) | (unsigned short)ch);
-
-            (param->x_pos)++;
-
-            if (param->x_pos == param->x_max)
+            else if ((ins_ch) >= 'A' && (ins_ch <= 'Z'))
             {
-                (param->y_pos)++;
-                param->x_pos = 0;
+                ins_ch -= 'A' - 'a';
             }
-        }
-
-        // scroll down 1 line
-        if (param->y_pos == param->y_max)
-        {
-            // move the line j to line k
-            for (j = 1, k = 0; j < param->y_max; j++, k++)
-            {
-                for (i = 0; i < param->x_max; i++)
-                {
-                    srcpix = (u16 *)(VGA_RAMBASE + ((param->x_max * j + i) << 1));
-                    dstpix = (u16 *)(VGA_RAMBASE + ((param->x_max * k + i) << 1));
-                    *dstpix = *srcpix;
-                }
-            }
-            (param->y_pos)--;
-
-            /* clear the last line */
-            dstpix = (u16 *)(VGA_RAMBASE + ((param->x_max * k) << 1));
-			for (i = 0; i < param->x_max; i++)
-            {
-                *dstpix++ = 0x720;
-            }         
-        }
-
-        param->set_cursal(param);
-    }
-}
-
-static void vga_console_init(struct console *con)
-{
-    struct vga_param *param = con->param;
-    u16 cur_pos;
-    /* read r14 r15 */
-    outb(14, VGA_RSELECT);
-    cur_pos = inb(VGA_RDATA);
-    cur_pos <<= 8;
-    outb(15, VGA_RSELECT);
-    cur_pos |= inb(VGA_RDATA);
-
-    param->x_max = 80;
-    param->y_max = 25;
-
-    /* set the cursal */
-    param->x_pos = cur_pos % param->x_max;
-    param->y_pos = cur_pos / param->x_max;
-
-    param->screen_clear = vga_screen_clear;
-    param->set_cursal = vga_set_cursal;
-}
-
-struct vga_param vga_param_s;
-struct console vga_console =
-{
-    .name = "vga",
-    .init = vga_console_init,
-    .write = vga_console_write,
-    .param = &vga_param_s,
-};
-
-void test_bks()
-{
-    vga_bks(&vga_console);
-}
-
-void disp_init()
-{    
-    vga_console.init(&vga_console);
-
-    ((struct vga_param *)(vga_console.param))->screen_clear(vga_console.param);
-
-    printf("********************************************************************************");
-    printf("*                                                                              *");
-    printf("*              This is myLoader, all rights reserved by David.                 *");
-    printf("*                                                                              *");
-    printf("********************************************************************************\n");
-    printf("System Begin...\n");
-}
-
-
-/******************************************************************************/
-/*  this is the print functions                                               */
-
-/******************************************************************************/
-
-
-u8 n2c(u8 num)
-{
-    if ((num >= 0) && (num <= 9))
-    {
-        return (num + '0');
-    }
-    else
-    {
-        return (num - 10 + 'A');
-    }
-}
-
-/* if width == 0, then output the whole texts */
-/* basenum: 10 or 16 or 8 */
-
-static u16 num_fmt(u32 num, char *buf, u8 basenum, u16 width, char prefix, char flag)
-{
-    char tempbuf[16];
-    u8 idx = sizeof(tempbuf), len = 0;
-
-    if (0 == num)
-    {
-        tempbuf[--idx] = '0';
-        len++;
-    }
-    else
-    {
-        while (num)
-        {
-            tempbuf[--idx] = n2c((u8)(num % basenum));
-            num /= basenum;
-            len++;
-        }
-    }
-
-    if (prefix)
-    {
-        tempbuf[--idx] = prefix;
-        len++;
-    }
-
-    if (len >= width)
-    {
-        memcpy(buf, &tempbuf[idx], len);
-        return len;
-    }
-
-    if ((flag == '#') || (flag == ' '))
-    {
-        if (flag == '#')
-            memset(buf, '0', width - len);
-        else
-            memset(buf, ' ', width - len);
-        memcpy(buf + width - len, &tempbuf[idx], len);
-    }
-    else if (flag == '+')
-    {
-        /* left align */
-        memcpy(buf, &tempbuf[idx], len);
-        memset(buf + len, ' ', width - len);
-    }    
-    else
-    {
-        ASSERT(0);
-    }
-    
-    
-    return width;
-}
-
-
-/*
- *  %[flags][width][.perc] [F|N|h|l]type
- */
-enum PRINTF_STATE
-{
-    S_CHAR,
-    S_PRE_FLAG,
-    S_PRE_WIDTH,
-    S_PRE_PERC,
-    S_PRE_F_N_H_L,
-    S_DEC,
-    S_OCT,
-    S_HEX,
-};
-
-/*
-
-    S_CHAR------->S_PRE
-       ^            |------------
-       |            |     |     |
-       |            V     V     V
-       |          S_DEC S_OCT S_HEX
-       |            |     |     |
-       |            V     V     V
-       --------------------------
-*/
-
-
-/* let's keep it simple */
-/* todo: */
-int printf(char *fmt, ...)
-{
-    u32 *args = ((u32 *)&(fmt)) + 1;
-    u16 width = 0, idx = 0;
-    char flag = ' ', ch, textbuf[256];
-    enum PRINTF_STATE state = S_CHAR;
-    
-    while ((ch = *fmt++) != '\0')
-    {
-        if ((state == S_PRE_FLAG) ||
-            (state == S_PRE_WIDTH) ||
-            (state == S_PRE_PERC) ||
-            (state == S_PRE_F_N_H_L))
-        {
-            if ((ch == '#') ||
-                (ch == '+') ||
-                (ch == '-') ||
-                (ch == ' '))
-            {            
-                /* (state == S_PRE_FLAG) || (state == S_PRE_WIDTH) */
-                ASSERT(state == S_PRE_FLAG);
-                
-                flag = ch;
-
-                /* change to S_PRE_WIDTH */
-                state = S_PRE_WIDTH;
-            }
-            else if ((ch >= '0') && (ch <= '9'))
-            {
-                /* (state == S_PRE_FLAG) || (state == S_PRE_WIDTH) */
-                ASSERT((state == S_PRE_FLAG) || (state == S_PRE_WIDTH));
-
-                width *= 10;
-                width += (ch - '0');
-            }
-            else if (ch == '.')
-            {
-                /* (state == S_PRE_FLAG) || (state == S_PRE_WIDTH) */
-                ASSERT((state == S_PRE_FLAG) || (state == S_PRE_WIDTH));
-
-                /* change to S_PRE_PERC */
-                state = S_PRE_PERC;
-            }
-            else if ((ch == 'd') || (ch == 'i'))
-            {
-                int i = *args++;
-
-                if (i < 0)
-                    idx += num_fmt((u32)(-i), &(textbuf[idx]), 10, width, '-', flag);
-                else
-                    idx += num_fmt((u32)i, &(textbuf[idx]), 10, width, 0, flag);
-
-                state = S_CHAR;
-            }
-            else if ((ch == 'x') || (ch == 'X'))
-            {
-                u32 i = *args++;
-                idx += num_fmt(i, &(textbuf[idx]), 16, width, 0, flag);
-
-                state = S_CHAR;
-            }
-            else if (ch == 'c')
-            {
-                u32 i = *args++;
-                textbuf[idx++] = (u8)i;
-
-                state = S_CHAR;
-            }
-            else if (ch == 's')
-            {
-                char chtmp, *src = (char *)(*args++);
-                while ((chtmp = *src++) != 0)
-                {
-                    textbuf[idx++] = chtmp;
-                }
-
-                state = S_CHAR;
-            }
-            else if (ch == '%')
-            {
-                textbuf[idx++] = '%';
-                state = S_CHAR;
-            }
-            else
-            {
-               ASSERT(0);
-            }
-        }
-        else    /* char */
-        {
-            if (ch == '%')
-            {
-                state = S_PRE_FLAG;
-                width = 0;
-                flag = ' ';
-            }
-            else    /* S_CHAR */
-            {
-                textbuf[idx++] = ch;
-            }
-        }
-    }
-    textbuf[idx++] = '\0';
-
-    vga_console.write(&vga_console, textbuf, idx);
-
-    return 0;
-}
-
-int sprintf(char *buf, char *fmt, ...)
-{
-    u32 *args = ((u32 *)&(fmt)) + 1;
-    u16 width = 0, idx = 0;
-    char flag = ' ', ch;
-    enum PRINTF_STATE state = S_CHAR;
-    
-    while ((ch = *fmt++) != '\0')
-    {   
-        if ((state == S_PRE_FLAG) ||
-            (state == S_PRE_WIDTH) ||
-            (state == S_PRE_PERC) ||
-            (state == S_PRE_F_N_H_L))
-        {
-            if ((ch == '#') ||
-                (ch == '+') ||
-                (ch == '-') ||
-                (ch == ' '))
-            {            
-                /* (state == S_PRE_FLAG) || (state == S_PRE_WIDTH) */
-                ASSERT(state == S_PRE_FLAG);
-                
-                flag = ch;
-
-                /* change to S_PRE_WIDTH */
-                state = S_PRE_WIDTH;
-            }
-            else if ((ch >= '0') && (ch <= '9'))
-            {
-                /* (state == S_PRE_FLAG) || (state == S_PRE_WIDTH) */
-                ASSERT((state == S_PRE_FLAG) || (state == S_PRE_WIDTH));
-
-                width *= 10;
-                width += (ch - '0');
-            }
-            else if (ch == '.')
-            {
-                /* (state == S_PRE_FLAG) || (state == S_PRE_WIDTH) */
-                ASSERT((state == S_PRE_FLAG) || (state == S_PRE_WIDTH));
-
-                /* change to S_PRE_PERC */
-                state = S_PRE_PERC;
-            }
-            else if ((ch == 'd') || (ch == 'i'))
-            {
-                int i = *args++;
-
-                if (i < 0)
-                    idx += num_fmt((u32)(-i), &(buf[idx]), 10, width, '-', flag);
-                else
-                    idx += num_fmt((u32)i, &(buf[idx]), 10, width, 0, flag);
-
-                state = S_CHAR;
-            }
-            else if ((ch == 'x') || (ch == 'X'))
-            {
-                u32 i = *args++;
-                idx += num_fmt(i, &(buf[idx]), 16, width, 0, flag);
-
-                state = S_CHAR;
-            }
-            else if (ch == 'c')
-            {
-                u32 i = *args++;
-                buf[idx++] = (u8)i;
-
-                state = S_CHAR;
-            }
-            else if (ch == 's')
-            {
-                char chtmp, *src = (char *)(*args++);
-                while ((chtmp = *src++) != 0)
-                {
-                    buf[idx++] = chtmp;
-                }
-
-                state = S_CHAR;
-            }
-            else if (ch == '%')
-            {
-                buf[idx++] = '%';
-                state = S_CHAR;
-            }
-            else
-            {
-               ASSERT(0);
-            }
-        }
-        else    /* char */
-        {
-            if (ch == '%')
-            {
-                state = S_PRE_FLAG;
-                width = 0;
-                flag = ' ';
-            }
-            else    /* S_CHAR */
-            {
-                buf[idx++] = ch;
-            }
-        }
-    }
-    buf[idx++] = '\0';
-
-    return 0;
-}
-
-/* dump stack */
-void dump_stack(void)
-{
-    // printf("");
-}
-
-
-/* block == 4, 2, 1 */
-#define DUMPRAM_LINESIZE        (16)
-void dump_ram(void *addr, u16 len)
-{
-    u16 count;
-    for (count = 0; count < len; count++)
-    {
-        if ((count % DUMPRAM_LINESIZE) == 0)
-        {
-            printf("0x%#8x: ", (u32)addr);
-        }
-
-        printf("%#2x ", *((u8 *)addr));
-        addr++;
-
-        if ((count % DUMPRAM_LINESIZE) == (DUMPRAM_LINESIZE / 2 - 1))
-        {
-            printf("    ");
         }
         
-        if ((count % DUMPRAM_LINESIZE) == (DUMPRAM_LINESIZE - 1))
-        {
-            printf("\n");
-        }
-    }
-    if ((count % DUMPRAM_LINESIZE) != 0)
-    {
-        printf("\n");
+        kbd_rawbuff_insert(ins_ch);
     }
 }
+
+static void cmd_reboot_opfunc(char *argv[], int argc, void *param)
+{
+    u8 outport_cmd = kbdctrl_outport_r();
+    printf("Now rebooting the system...\n");
+    kbdctrl_outport_w(outport_cmd & 0xFE);
+}
+
+struct command cmd_reboot _SECTION_(.array.cmd) =
+{
+    .cmd_name   = "reboot",
+    .info       = "Reboot the system.",
+    .op_func    = cmd_reboot_opfunc,
+};
+
+static void __init kbd_init(void)
+{
+    kbd_rawinput_buff.readpos = kbd_rawinput_buff.writepos = 0;
+    
+    _cli();
+
+	/* keyboard interrupt */
+	interrup_register(X86_VECTOR_IRQ_21 - X86_VECTOR_IRQ_20,
+					  kbd_int, NULL);
+    _sti();
+}
+
+module_init(kbd_init, 2);
+
 
