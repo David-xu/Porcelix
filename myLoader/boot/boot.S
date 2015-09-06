@@ -3,11 +3,24 @@
 #include "config.h"
 
 .global bootc_entry
+.global boot_dev
 
 .section .text.entry
 
 /* x86 read mode */
 .code16
+
+/*  */
+#if 0
+test_flag:
+	movw	$0x9000, %ax
+	movw	%ax, %sp
+	push	$0x7c00
+.byte 0x66
+	ret
+#endif
+/*  */
+
 	cli
 /* init ss:sp take care of this value */
 	movw	$0x9000, %ax
@@ -18,10 +31,10 @@
 	movw	%ax, %ds
 	movw	%ax, %es
 
-	sti		/* we're safe again */
+	/*sti		/* we're safe again */
 
 	/* save the boot device */
-	// movb	%dl, boot_dev
+	movb	%dl, boot_dev
 
 	jmp	$0x7c0, $bootc_entry
 
@@ -61,4 +74,3 @@ boot_dev:	.byte 0			/*  */
 .word	0xAA55			/* off:0x1FE */
 
 #endif
-
