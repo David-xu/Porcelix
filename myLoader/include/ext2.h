@@ -36,9 +36,9 @@ struct ext2_group_desc
  * actrually I copied it from linux kernel
  */
 #define	EXT2_NDIR_BLOCKS        12
-#define	EXT2_IND_BLOCK          EXT2_NDIR_BLOCKS            /* rand 1 */
-#define	EXT2_DIND_BLOCK         (EXT2_IND_BLOCK + 1)        /* rand 2 */
-#define	EXT2_TIND_BLOCK         (EXT2_DIND_BLOCK + 1)       /* rand 3 */
+#define	EXT2_IND_BLOCK          EXT2_NDIR_BLOCKS            /* 12 rand 1 */
+#define	EXT2_DIND_BLOCK         (EXT2_IND_BLOCK + 1)        /* 13 rand 2 */
+#define	EXT2_TIND_BLOCK         (EXT2_DIND_BLOCK + 1)       /* 14 rand 3 */
 #define	EXT2_N_BLOCKS           (EXT2_TIND_BLOCK + 1)
 
 
@@ -132,14 +132,17 @@ struct ext2_superblock{
     u32     s_blocks_count;		/* Blocks count */
     u32     s_r_blocks_count;	/* Reserved blocks count */
     u32     s_free_blocks_count;	/* Free blocks count */
+
     u32     s_free_inodes_count;	/* Free inodes count */
     u32     s_first_data_block;	/* First Data Block */
     u32     s_log_block_size;	/* Block size */
     u32     s_log_frag_size;	/* Fragment size */
+
     u32     s_blocks_per_group;	/* # Blocks per group */
     u32     s_frags_per_group;	/* # Fragments per group */
     u32     s_inodes_per_group;	/* # Inodes per group */
     u32     s_mtime;		/* Mount time */
+
     u32     s_wtime;		/* Write time */
     u16     s_mnt_count;		/* Mount count */
     u16     s_max_mnt_count;	/* Maximal mount count */
@@ -147,10 +150,12 @@ struct ext2_superblock{
     u16     s_state;		/* File system state */
     u16     s_errors;		/* Behaviour when detecting errors */
     u16     s_minor_rev_level; 	/* minor revision level */
+
     u32     s_lastcheck;		/* time of last check */
     u32     s_checkinterval;	/* max. time between checks */
     u32     s_creator_os;		/* OS */
     u32     s_rev_level;		/* Revision level */
+
     u16     s_def_resuid;		/* Default uid for reserved blocks */
     u16     s_def_resgid;		/* Default gid for reserved blocks */
 	/*
@@ -170,6 +175,7 @@ struct ext2_superblock{
     u16     s_inode_size; 		/* size of inode structure */
     u16     s_block_group_nr; 	/* block group # of this superblock */
     u32     s_feature_compat; 	/* compatible feature set */
+
     u32     s_feature_incompat; 	/* incompatible feature set */
     u32     s_feature_ro_compat; 	/* readonly-compatible feature set */
     u8      s_uuid[16];		/* 128-bit uuid for volume */
@@ -204,8 +210,8 @@ struct ext2_superblock{
  * stored in the 
  */
 struct ext2_info{
-    struct page *fsparam;           /* this page used to store some fs param like
-                                       superblock grp_desc block_bitmap inode_bitmap */
+	void *fsparam;					/* these 2 pages used to store some fs param like
+									   superblock grp_desc block_bitmap inode_bitmap */
     struct ext2_superblock *sb;     /* 1K */
     struct ext2_group_desc *grp_desc;   /* 1K */
     void *fsblock_buff01;           /* 1K */
@@ -213,7 +219,7 @@ struct ext2_info{
 
     u32 blk_size;                   /* filesystem block size */
 
-    u8 inode_per_block;
+    u8 inode_per_block;				/* number of inode per filesystem block */
 
     u32         curdir_idx;         /* the index of the dentry_buf */
     dentry_t    dentry_buf[0];
