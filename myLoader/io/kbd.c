@@ -171,14 +171,32 @@ void kbdctrl_outport_w(u8 cmd)
     outb(cmd, PORT_KBD_CMD);
 }
 
-void kbd_int(void)
+void kbd_int(struct pt_regs *regs, void *param)
 {
+	/* need to disable and enable the kbd controller, copied from linux kernel */
+	__asm__ __volatile__ (
+		"inb	$0x61, %%al				\n\t"
+		"jmp	1f						\n\t"
+		"1:		jmp		2f				\n\t"
+		"2:		orb		$0x80, %%al		\n\t"
+		"jmp	3f						\n\t"
+		"3:		jmp		4f				\n\t"
+		"4:		outb	%%al, $0x61		\n\t"
+		"jmp	5f						\n\t"
+		"5:		jmp		6f				\n\t"
+		"6:		andb	$0x7F, %%al		\n\t"
+		"outb	%%al, $0x61				\n\t"
+		:
+		:
+		:"memory"
+	);
+
     static u8 volatile state_cap = 0, state_shift = 0;
     
     /* read the scancode from the kbd register */
     u8 scancode = inb(PORT_KBD_CMD);
 
-    // DEBUG("%#2x.", scancode);
+    DEBUG("%#2x.", scancode);
 
     /* process the left and right 'SHIFT' */
     if (((scancode & (~0x80)) == KBD_SCANCODE_LEFTSHIFT) ||
@@ -246,7 +264,7 @@ static void cmd_reboot_opfunc(char *argv[], int argc, void *param)
     kbdctrl_outport_w(outport_cmd & 0xFE);
 }
 
-struct command cmd_reboot _SECTION_(.array.cmd) =
+struct command cmd_reboot _SECTION_(.array.cmd) =
 {
     .cmd_name   = "reboot",
     .info       = "Reboot the system.",
@@ -255,18 +273,13 @@ struct command cmd_reboot _SECTION_(.array.cmd) =
 
 static void __init kbd_init(void)
 {
-    u8 intmask;
-
     kbd_rawinput_buff.readpos = kbd_rawinput_buff.writepos = 0;
     
     _cli();
-    
-    /* OCW1, set 8259A master INTMASK reg */
-    intmask = inb(PORT_8259A_MASTER_A1);    /* the INTMAST reg is the 0x21 and 0xA1 */
-    outb(intmask & (~0x02), PORT_8259A_MASTER_A1);
 
-    set_idt(X86_VECTOR_IRQ_21, kbd_int_entrance);       /* keyboard interrupt */
-
+	/* keyboard interrupt */
+	interrup_register(X86_VECTOR_IRQ_21 - X86_VECTOR_IRQ_20,
+					  kbd_int, NULL);
     _sti();
 }
 
