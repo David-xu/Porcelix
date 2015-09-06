@@ -8,6 +8,8 @@
 /* make the compiler happy */
 #define __used  __attribute__((__used__))
 
+#define __weak	__attribute__((weak))
+
 /*  */
 #define asmlinkage      __attribute__((regparm(3)))
 
