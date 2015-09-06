@@ -4,13 +4,15 @@
 #include "config.h"
 #include "io.h"
 
+void die(void);
+
 #define ASSERT(cond)                                                \
         {                                                           \
             if (!(cond))                                            \
             {                                                       \
                 printf("ASSERT!\nFile:%s, Func:%s, Line:%d\n%s\n",  \
                        __FILE__, __func__, __LINE__, #cond);        \
-                while(1);                                           \
+                die();												\
             }                                                       \
         }
 
@@ -19,7 +21,7 @@
 			printf("ERROR!\nFile:%s, Func:%s, Line:%d\n",			\
 				   __FILE__, __func__, __LINE__);					\
 			printf(fmt, ##__VA_ARGS__);								\
-			while(1);												\
+			die();													\
 		}
 
 #endif
