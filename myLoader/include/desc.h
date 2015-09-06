@@ -1,9 +1,28 @@
 #ifndef _DISC_H_
 #define _DISC_H_
 
+#include "public.h"
 #include "io.h"
 #include "config.h"
 #include "ml_string.h"
+
+#define	EFLAGSMASK_CF				(0x1 << 0)
+#define	EFLAGSMASK_PF				(0x1 << 2)
+#define	EFLAGSMASK_AF				(0x1 << 4)
+#define	EFLAGSMASK_ZF				(0x1 << 6)
+#define	EFLAGSMASK_SF				(0x1 << 7)
+#define	EFLAGSMASK_TF				(0x1 << 8)
+#define	EFLAGSMASK_IF				(0x1 << 9)
+#define	EFLAGSMASK_DF				(0x1 << 10)
+#define	EFLAGSMASK_OF				(0x1 << 11)
+#define	EFLAGSMASK_IOPL				(0x3 << 12)
+#define	EFLAGSMASK_NT				(0x1 << 14)
+#define	EFLAGSMASK_RF				(0x1 << 16)
+#define	EFLAGSMASK_VM				(0x1 << 17)
+#define	EFLAGSMASK_AC				(0x1 << 18)
+#define	EFLAGSMASK_VIF				(0x1 << 19)
+#define	EFLAGSMASK_VIP				(0x1 << 20)
+#define	EFLAGSMASK_ID				(0x1 << 21)
 
 enum X86_VECTORTYPE{
     X86_VECTOR_DE = 0,          /* 0 : divi error */
@@ -48,6 +67,9 @@ enum X86_VECTORTYPE{
 
 /* custom vector */
     CUSTOM_VECTOR_LAPICTIMER = 0x50,
+
+/* system call vector */
+	SYSTEMCALL_VECTOR = 0x80,
 };
 
 struct segdesc{
@@ -82,6 +104,7 @@ struct segdesc{
 
 enum desc_type
 {
+	X86DESCTYPE_TSS_32 = 0x9,
     X86DESCTYPE_IDT_32 = 0xE,
     X86DESCTYPE_TRAP_32 = 0xF,
 };
@@ -119,7 +142,7 @@ static inline void segdesc_disp(struct segdesc *desc)
 
 /******************************************************************************/
 /******************************************************************************/
-static inline void set_idt(u8 vect, void *addr)
+static inline void set_intgate(u8 vect, void *addr)
 {
     struct idtdesc idt;
 
@@ -143,7 +166,7 @@ static inline void set_trap(u8 vect, void *addr)
     idt.funcaddr_h16 = ((u32)addr) >> 16;
     idt.funcaddr_l16 = (u16)(u32)addr;
 
-    idt.dpl = 0;
+    idt.dpl = 3;
     idt.p = 1;
     idt.s = 0;
     idt.desc = SYSDESC_CODE;
@@ -151,6 +174,39 @@ static inline void set_trap(u8 vect, void *addr)
     memcpy((u8 *)&(idt_table[vect]), (u8 *)&idt, sizeof(idt));
 }
 
+/* we used the 'PUBDESC_TSS' as TSS */
+static inline void set_tss(void *addr, u32 segsize)
+{
+    struct segdesc tss;
+	ASSERT(sizeof(tss) == 8);
+
+	tss.u.s1.word0 = 0;
+	tss.u.s1.word1 = 0;
+
+	barrier();
+
+	tss.u.s2.type = X86DESCTYPE_TSS_32;
+	tss.u.s2.base_addr_h8 = (u8)(((u32)addr) >> 24);
+	tss.u.s2.base_addr_m8 = (u8)(((u32)addr) >> 16);
+	tss.u.s2.base_addr_l16 = (u16)(u32)addr;
+
+	tss.u.s2.seg_limit_h4 = 0;
+	tss.u.s2.seg_limit_l16 = segsize - 1;
+	
+	tss.u.s2.persist = 1;
+	tss.u.s2.sysflag = 0;
+
+    memcpy((u8 *)&(gdt_table[PUBDESC_TSS >> 3]), (u8 *)&tss, sizeof(tss));
+}
+
+static inline void set_tr(void)
+{
+	__asm__ __volatile__ (
+		"ltr %w0"
+		:
+		:"q" (PUBDESC_TSS)
+	);
+}
 
 #endif
 
