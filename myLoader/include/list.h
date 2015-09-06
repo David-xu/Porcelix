@@ -28,7 +28,7 @@ struct list_head{
  *    p : struct list_head *
  * head : struct list_head *
  */
-#define LIST_WALK_THROUTH(p, head)                           \
+#define LIST_WALK_THROUGH(p, head)                           \
         for ((p) = ((struct list_head *)(head))->next;      \
              (p) != (struct list_head *)(head);             \
              (p) = (p)->next)
@@ -43,10 +43,17 @@ struct list_head{
  *   head : list_head pointer
  * member : owner.member
  */
-#define LIST_FOREACH_ELEMENT(entry, head, member)                               \
-        for (entry = GET_CONTAINER((head)->next, typeof(*entry), member);        \
-             &(entry->member) != (head);                                        \
-             entry = GET_CONTAINER(entry->member.next, typeof(*entry), member))
+#define LIST_FOREACH_ELEMENT(p, head, field)							\
+        for (p = GET_CONTAINER((head)->next, typeof(*p), field);		\
+             &(p->field) != (head);									\
+             p = GET_CONTAINER(p->field.next, typeof(*p), field))
+
+#define LIST_FOREACH_ELEMENT_SAVE(p, n, head, field)					\
+		for (p = GET_CONTAINER((head)->next, typeof(*p), field),		\
+			 n = GET_CONTAINER((head)->next->next, typeof(*p), field);	\
+			 &(p->field) != (head);										\
+			 p = n, n = GET_CONTAINER(p->field.next, typeof(*p), field))
+
 /*
  * check the list is empty or not.
  */
