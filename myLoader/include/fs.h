@@ -3,7 +3,6 @@
 
 #include "typedef.h"
 #include "section.h"
-#include "hd.h"
 #include "list.h"
 
 /* file stat, copied from linux kernel */
@@ -45,7 +44,13 @@
 #define FS_FILENAME_LEN             (64)
 #define FS_INODE_BKMAPSIZE          (16)
 
-typedef struct _inode{
+/*  */
+struct _inode;
+typedef struct _file {
+	struct _inode *inode;
+} file_t;
+
+typedef struct _inode {
 	u16	i_mode;		/* File mode */
 	u16	i_uid;		/* Low 16 bits of Owner Uid */
 	u32	i_size;		/* Size in bytes */
@@ -58,7 +63,7 @@ typedef struct _inode{
 	u32	i_blocks;	/* Blocks count */
 	u32	i_flags;	/* File flags */
     u32 i_block[FS_INODE_BKMAPSIZE];/* Pointers to blocks */
-}inode_t;
+} inode_t;
 
 typedef struct _dentry{
     char name[FS_FILENAME_LEN];
@@ -66,10 +71,10 @@ typedef struct _dentry{
     inode_t inode;              /* this is the dir inode buffer */
 }dentry_t;
 
-typedef struct _stat_dentry_array{
+typedef struct _stat_dentry_array {
     u32 n_dentry;
     dentry_t dentry_array[0];
-}stat_dentry_array_t;
+} stat_dentry_array_t;
 
 /* To make it simple, we don't used the 'block layer'.
  */
@@ -85,10 +90,15 @@ struct file_system{
     int (*fs_getinode)(struct file_system *fs, void *param, inode_t *inode, u32 inode_idx);
     char* (*fs_getcurdir)(struct file_system *fs, void *param);
     int (*fs_changecurdir)(struct file_system *fs, void *param, char *dirname);
-    struct page* (*fs_stat)(struct file_system *fs, void *param);
+    stat_dentry_array_t* (*fs_stat)(struct file_system *fs, void *param);
+	int (*fs_readfile)(struct file_system *fs, void *param, inode_t *inode, void *mem);
 
-    u32 pad[7];
+	/*  */
+    u32 pad[6];
 };
+
+struct partition_desc;
+int fs_readfile(struct partition_desc *part, char *name, void *buf);
 
 // void fs_init(void) _SECTION_(.init.text);
 
