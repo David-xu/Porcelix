@@ -28,6 +28,9 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
                 for (func = 0; func < PCI_FUNC_COUNT; func++)
                 {
                     getpciinfo(bus, dev, func, &pcicfg);
+					if ((pcicfg.u.cfg.vendor == 0x15ad) &&
+						(pcicfg.u.cfg.device == 0x7a0))
+						continue;
                     
                     if (pcicfg.u.cfg.vendor != PCI_INVALID_VENDORID)
                     {
@@ -80,7 +83,7 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
     }
 }
 
-struct command cmd_dispcidev _SECTION_(.array.cmd) =
+struct command cmd_dispcidev _SECTION_(.array.cmd) =
 {
     .cmd_name   = "dispci",
     .info       = "Display all PCI device in the system. -a, -b [bus], -bdf [bus] [dev] [func].",
@@ -92,12 +95,12 @@ struct command cmd_dispcidev _SECTION_(.array.cmd) =
 void pci_dispcfgdata(pcicfgdata_t *pcicfg)
 {
     unsigned i = 0;
-    printf("   Vendor: 0x%#4x,  Device: 0x%#4x,      class: 0x%#6x, sRevision: 0x%#2x\n"
-           "   SubVer: 0x%#4x,  SubDev: 0x%#4x\n"
+    printf("   Vendor: 0x%#4x,  Device: 0x%#4x,     SubVer: 0x%#4x,  SubDev: 0x%#4x\n"
+           "    class: 0x%#2x,  subclass: 0x%#2x,         prog: 0x%#2x, sRevision: 0x%#2x\n"
            "     BIST: 0x%#2x,HeaderType: 0x%#2x, LatencyTimer: 0x%#2x, CacheLineSize: 0x%#2x\n"
            "   MaxLat: 0x%#2x,    MinGnt: 0x%#2x,       IntPin: 0x%#2x,       IntLine: 0x%#2x\n",
-           pcicfg->u.cfg.vendor, pcicfg->u.cfg.device, pcicfg->u.cfg.class, pcicfg->u.cfg.revision,
-           pcicfg->u.cfg.subvendor, pcicfg->u.cfg.subid,
+           pcicfg->u.cfg.vendor, pcicfg->u.cfg.device, pcicfg->u.cfg.subvendor, pcicfg->u.cfg.subid,
+           pcicfg->u.cfg.class, pcicfg->u.cfg.subclass, pcicfg->u.cfg.prog, pcicfg->u.cfg.revision,
            pcicfg->u.cfg.bist, pcicfg->u.cfg.ht, pcicfg->u.cfg.lt, pcicfg->u.cfg.cls,
            pcicfg->u.cfg.maxlat, pcicfg->u.cfg.mingnt, pcicfg->u.cfg.intpin, pcicfg->u.cfg.intline);
     for (i = 0; i < ARRAY_ELEMENT_SIZE(pcicfg->u.cfg.baseaddr); i++)
@@ -171,13 +174,16 @@ void getpciinfo(u32 bus, u32 dev, u32 func, pcicfgdata_t *pcicfg)
     /* write the 0xffffffff to bar and read, after that we can get the bar_mask */
     for (count = 0; count < ARRAY_ELEMENT_SIZE(pcicfg->u.cfg.baseaddr); count++)
     {
+    	/* write 0xffffffff to bar */
         outl(cfgword, PCI_CONFIG_ADDRESS);
         outl(0xFFFFFFFF, PCI_DATA_ADDRESS);
 
+		/* read it, and we can get the mask */
         outl(cfgword, PCI_CONFIG_ADDRESS);
         val = inl(PCI_DATA_ADDRESS);
         pcicfg->bar_mask[count] = val & (~0xF);
 
+		/* resume the bar value */
         outl(cfgword, PCI_CONFIG_ADDRESS);
         outl(pcicfg->u.cfg.baseaddr[count], PCI_DATA_ADDRESS);
 
@@ -204,8 +210,10 @@ void pci_init(void)
                     continue;
                 }
 
-                /* new device */
-                pcinewdev = (pci_dev_t *)page2phyaddr(page_alloc(BUDDY_RANK_4K));
+                /* new device, cause the space after pci_dev_t in this page, we used it
+                 * so we need to page_alloc
+				 */
+                pcinewdev = (pci_dev_t *)page_alloc(BUDDY_RANK_4K, MMAREA_LOW1M);
                 
                 /* copy the pci config data into the device struct */
                 memcpy(&(pcinewdev->pcicfg), &pcicfg, sizeof(pcinewdev->pcicfg));
@@ -234,7 +242,7 @@ void pci_init(void)
                 }
                 
                 /* release the page */
-                page_free(phyaddr2page(pcinewdev));
+                page_free(pcinewdev);
                 continue;
 
 findoneproperdrv:
