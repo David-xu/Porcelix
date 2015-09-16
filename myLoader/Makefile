@@ -19,11 +19,11 @@ bootobj := $(bootsrc_c:.c=.o) $(bootsrc_S:.S=.o)
 # all of the '.c' source file
 src_c := core/corestart16.c core/main.c core/cmdlist.c core/module.c core/net.c core/func.c core/task.c core/syscall.c	\
 	drv/pci/core.c drv/pci/rtl8139.c drv/pci/e1000.c drv/pci/pcnet32.c	\
-	io/disp.c io/interrupt.c io/kbd.c io/hd.c						\
-	mm/memory.c mm/page.c mm/slab.c									\
-	fs/block.c fs/fs.c fs/ext4.c fs/ext2.c							\
-	udp_cli/server.c												\
-	lib/crc32/crc32.c lib/avl/avl.c	lib/rgmng.c						\
+	io/disp.c io/interrupt.c io/kbd.c io/hd.c							\
+	mm/memory.c mm/page.c mm/slab.c										\
+	fs/block.c fs/fs.c fs/ext4.c fs/ext2.c								\
+	udp_cli/server.c													\
+	lib/crc32/crc32.c lib/avl/avl.c	lib/rgmng.c							\
 	../umexec/userbin.c
 # all of the '.S' source file 
 src_S := core/corestart.S core/entrance.S
