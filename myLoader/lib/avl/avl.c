@@ -267,9 +267,13 @@ void avl_remove(avln_t **root, avln_t *rmnode)
 
 		if (rmnode->f != NULL)
 		{
-			root = (rmnode->f->lc == rmnode) ? &(rmnode->f->lc) : &(rmnode->f->rc);
+			if (rmnode->f->lc == rmnode)
+				rmnode->f->lc = rmpos;
+			else
+				rmnode->f->rc = rmpos;
 		}
-		*root = rmpos;
+		else
+			*root = rmpos;
 	}
 	else
 	{

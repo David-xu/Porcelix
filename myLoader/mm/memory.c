@@ -381,7 +381,7 @@ static int rr_cmp(const void *a, const void *b)
 
 int resoure_add_range(resource_t *sr, u32 begin, u32 size, u32 flag)
 {
-	u32 i, cur_size = 0, cur_flag = 0;
+	u32 i, cur_size = 0;
 	u64 cur_begin = 0;
 
 	if ((sr->n_range + 2) > MM_RANGERESOURCE_MAXNUM)
@@ -397,7 +397,6 @@ int resoure_add_range(resource_t *sr, u32 begin, u32 size, u32 flag)
 		{
 			cur_begin = sr->rd[i].begin;
 			cur_size = sr->rd[i].size;
-			cur_flag = sr->rd[i].flag;
 			break;
 		}
 	}
