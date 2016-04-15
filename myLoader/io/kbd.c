@@ -6,6 +6,7 @@
 #include "section.h"
 #include "command.h"
 #include "module.h"
+#include "sem.h"
 
 /* kbd controller port */
 #define PORT_KBD_CMD                (0x60)
@@ -23,7 +24,6 @@
 #define KBD_SCANCODE_RIGHTSHIFT (0x36)
 
 #define KBD_SCANCODE_CAP        (0x3A)
-
 
 static u8 kbd_shiftup_map[] =
 {
@@ -122,35 +122,37 @@ struct kbd_rawinput_buff{
     u16      readpos, writepos;          // if readpos == writepos, it means no input data
 }kbd_rawinput_buff;
 
+static sem_t kbd_sem;
+
 static void kbd_rawbuff_insert(u8 value)
 {
+	/* if buff full, just drop this new char */
+	if (((kbd_rawinput_buff.writepos + 1) % KBD_RAWINPUTBUFF_SIZE) == kbd_rawinput_buff.readpos)
+		return;
+
     kbd_rawinput_buff.buff[kbd_rawinput_buff.writepos++] = value;
     // modify the write pos
     kbd_rawinput_buff.writepos %= KBD_RAWINPUTBUFF_SIZE;
 
-    // if buff full then drop the most old char
-    if (kbd_rawinput_buff.writepos == kbd_rawinput_buff.readpos)
-    {
-        kbd_rawinput_buff.readpos = (kbd_rawinput_buff.readpos + 1) % KBD_RAWINPUTBUFF_SIZE;
-    }
+	sem_signal(&kbd_sem);
 }
 
 /* return -1 means no data in rawbuff */
 int kbd_get_char()
 {
-    int ret = 0;
-    if (kbd_rawinput_buff.readpos == kbd_rawinput_buff.writepos)
-    {
-        return -1;
-    }
+	int ret = 0;
 
-    ret = kbd_rawinput_buff.buff[kbd_rawinput_buff.readpos];
+	if (kbd_rawinput_buff.writepos == kbd_rawinput_buff.readpos)
+		sem_wait(&kbd_sem, TIMEOUT_INFINIT);
 
-    // modify the read pos
-    kbd_rawinput_buff.readpos += 1;
-    kbd_rawinput_buff.readpos %= KBD_RAWINPUTBUFF_SIZE;
+	ASSERT(kbd_rawinput_buff.writepos != kbd_rawinput_buff.readpos);
+	ret = kbd_rawinput_buff.buff[kbd_rawinput_buff.readpos];
 
-    return ret;
+	// modify the read pos
+	kbd_rawinput_buff.readpos += 1;
+	kbd_rawinput_buff.readpos %= KBD_RAWINPUTBUFF_SIZE;
+
+	return ret;
 }
 
 u8 kbdctrl_outport_r(void)
@@ -260,7 +262,7 @@ void kbd_int(struct pt_regs *regs, void *param)
 static void cmd_reboot_opfunc(char *argv[], int argc, void *param)
 {
     u8 outport_cmd = kbdctrl_outport_r();
-    printf("Now rebooting the system...\n");
+    printk("Now rebooting the system...\n");
     kbdctrl_outport_w(outport_cmd & 0xFE);
 }
 
@@ -274,15 +276,12 @@ struct command cmd_reboot _SECTION_(.array.cmd) =
 static void __init kbd_init(void)
 {
     kbd_rawinput_buff.readpos = kbd_rawinput_buff.writepos = 0;
-    
-    _cli();
 
+	sem_init(&(kbd_sem), 0);
+	
 	/* keyboard interrupt */
 	interrup_register(X86_VECTOR_IRQ_21 - X86_VECTOR_IRQ_20,
 					  kbd_int, NULL);
-    _sti();
 }
 
 module_init(kbd_init, 2);
-
-

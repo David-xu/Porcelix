@@ -15,6 +15,7 @@
 #include "task.h"
 #include "boot.h"
 #include "crc32.h"
+#include "timer.h"
 
 struct bootparam bootparam _SECTION_(.coreentry.param);
 
@@ -41,11 +42,12 @@ void loader_entry(void)
     getbootparam();
 
     interrupt_init();		/* after that we enable INT */
-	trap_init();			
+	trap_init();
     disp_init();            /* after that we can do some screen print... */
 	mem_init();				/* we need to init all memsystem first */
+	timer_init();
 
-	printf("booting from 0x%#2x\n", bootparam.boot_dev);
+	printk("booting from 0x%#2x\n", bootparam.boot_dev);
 	
     /* check the crc */
 	if (bootparam.core_crc != corecrc)
@@ -57,7 +59,7 @@ void loader_entry(void)
 	}
 	else
 	{
-		printf("CRC chech success.\n");
+		DEBUG("CRC chech success.\n");
 	}
 
     /* call all the module init functions as the level order */

@@ -67,7 +67,7 @@ volatile char test_func(char a)
 
 int setjmp(jmpbuf *b)
 {
-	/* eax æ˜¯è¿”å›å€¼ä¸ç”¨å­˜ ebpåœ¨å½“å‰æ ˆä¸­å·²ç»ä¿å­˜äº† */
+	/* eax ÊÇ·µ»ØÖµ²»ÓÃ´æ ebpÔÚµ±Ç°Õ»ÖĞÒÑ¾­±£´æÁË */
 	__asm__ __volatile__ (
 		"push	%%edi			\n\t"
 		"push	%%esi			\n\t"
@@ -90,7 +90,7 @@ int setjmp(jmpbuf *b)
 
 void longjmp(jmpbuf *b)
 {
-	/* æ¨¡æ‹Ÿä¸€ä¸ªè¿”å›æ ˆç»“æ„ å®é™…ä¸Šåœ¨bé‡Œé¢å·²ç»å­˜åœ¨äº† å°†bä¸­åº•éƒ¨çš„å˜é‡ä¾æ¬¡æ¢å¤åˆ°regä¸­ */
+	/* Ä£ÄâÒ»¸ö·µ»ØÕ»½á¹¹ Êµ¼ÊÉÏÔÚbÀïÃæÒÑ¾­´æÔÚÁË ½«bÖĞµ×²¿µÄ±äÁ¿ÒÀ´Î»Ö¸´µ½regÖĞ */
 	__asm__ __volatile__ (
 		"movl	%%eax, %%esi		\n\t"
 		"movl	28(%%eax), %%edi	\n\t"

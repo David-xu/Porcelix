@@ -12,6 +12,11 @@ typedef struct spinlock {
 
 #define DEFINE_SPINLOCK(name)   spinlock_t name = {1};
 
+static inline void spinlock_init(spinlock_t *lock)
+{
+	lock->lock = 1;
+}
+
 static inline void spin_lock(spinlock_t *lock)
 {
     raw_local_irq_save(lock->flag);
@@ -24,7 +29,7 @@ static inline void spin_lock(spinlock_t *lock)
 static inline void spin_unlock(spinlock_t *lock)
 {
     lock->lock = 1;
-    
+	
     raw_local_irq_restore(lock->flag);
 }
 

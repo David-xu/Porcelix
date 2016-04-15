@@ -1,0 +1,6 @@
+###
+# Shorthand for $(Q)$(MAKE) -f scripts/Makefile.build obj=
+# Usage:
+# $(Q)$(MAKE) $(build)=dir
+#build := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj
+build := @echo $@

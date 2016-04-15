@@ -17,7 +17,7 @@ static void udpcli_reset(sock_context_t *sock_ctx)
     memset(sock_ctx->localip, 0, 4);
     memset(sock_ctx->destip, 0, 4);
 
-    printf("[udpcli]reset\n");
+    printk("[udpcli]reset\n");
 }
 
 /* buff: upd date(without any header) */
@@ -38,7 +38,7 @@ static int udpcli_recv
     if (memcmp(date, CONFIG_UDPCLI_HELLO_REQ, sizeof(CONFIG_UDPCLI_HELLO_REQ)) == 0)
     {
         /* connet from the client */
-        printf("\n[udpcli]get connect from client:%d.%d.%d.%d %d\n",
+        printk("\n[udpcli]get connect from client:%d.%d.%d.%d %d\n",
                ipv4header->src_ip[0],
                ipv4header->src_ip[1],
                ipv4header->src_ip[2],
@@ -57,7 +57,7 @@ static int udpcli_recv
     else if (memcmp(date, CONFIG_UDPCLI_BYE_REQ, sizeof(CONFIG_UDPCLI_BYE_REQ)) == 0)
     {    
         /* disconnect from the client */
-        printf("[udpcli]disconnect from client:%d.%d.%d.%d %d\n",
+        printk("[udpcli]disconnect from client:%d.%d.%d.%d %d\n",
                sock_ctx->destip[0],
                sock_ctx->destip[1],
                sock_ctx->destip[2],
@@ -77,7 +77,7 @@ static int udpcli_recv
         udpcli_cmd *cmd = (udpcli_cmd *)date;
         if (cmd->cmd_ack != UDPCLI_CMDTYPE_REQ)
         {
-            printf("[udpcli]need req command.\n");
+            printk("[udpcli]need req command.\n");
             dump_ram(cmd, 32);
             return 0;
         }
@@ -86,7 +86,7 @@ static int udpcli_recv
             /* check the crc */
             if (0 != crc32_raw(cmd->buff, cmd->totallen - sizeof(udpcli_cmd)))
             {
-                printf("crc check failed.\n");
+                printk("crc check failed.\n");
                 cmd->cmd_ack = UDPCLI_CMDTYPE_RETRY;
             }
             else
@@ -102,13 +102,13 @@ static int udpcli_recv
                 }
                 else
                 {
-                    printf("invalid hd idx:%d\n", cmd->u.hdwrite_s.hdidx);
+                    printk("invalid hd idx:%d\n", cmd->u.hdwrite_s.hdidx);
                 }
                 hd_dev->driver->write(hd_dev,
                                       cmd->u.hdwrite_s.logicsect,
                                       cmd->buff,
                                       1);
-                printf("[udpcli]hd write finished, logicsector:%d\n", cmd->u.hdwrite_s.logicsect);
+                printk("[udpcli]hd write finished, logicsector:%d\n", cmd->u.hdwrite_s.logicsect);
                 cmd->cmd_ack = UDPCLI_CMDTYPE_ACK;
             }
             cmd->totallen = sizeof(udpcli_cmd);
@@ -117,7 +117,7 @@ static int udpcli_recv
         }
         else
         {
-            printf("[udpcli]unknown command type:%d\n", cmd->cmdtype);
+            printk("[udpcli]unknown command type:%d\n", cmd->cmdtype);
         }
     }
     

@@ -107,6 +107,28 @@ static inline void list_add_tail
 	_list_add(new, head->prev, head);
 }
 
+typedef int (*list_ele_comp)(struct list_head *a, struct list_head *b);
+
+/* ”––Ú≤Â»Î */
+static inline void list_add_comp
+(struct list_head *new,
+ struct list_head *head,
+ list_ele_comp comp_func
+ )
+{
+	struct list_head *p;
+	LIST_WALK_THROUGH(p, head)
+	{
+		if (comp_func(p, new) < 0)
+			continue;
+
+		break;
+	}
+
+	_list_add(new, p->prev, p);
+}
+
+
 static inline void list_remove(struct list_head *rmnode)
 {
     ASSERT(CHECK_NODE_INLIST(rmnode));

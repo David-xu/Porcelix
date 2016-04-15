@@ -137,7 +137,7 @@ static inline void segdesc_disp(struct segdesc *desc)
     u32 limit = (desc->seg_limit_h4 << 16) |
                 (desc->seg_limit_l16);
 */
-    printf("high word: %x, low word: %x\n", desc->u.s1.word1, desc->u.s1.word0);
+    printk("high word: %x, low word: %x\n", desc->u.s1.word1, desc->u.s1.word0);
 }
 
 /******************************************************************************/

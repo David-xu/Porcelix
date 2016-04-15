@@ -17,13 +17,15 @@ bootsrc := $(bootsrc_c) $(bootsrc_S)
 bootobj := $(bootsrc_c:.c=.o) $(bootsrc_S:.S=.o)
 
 # all of the '.c' source file
-src_c := core/corestart16.c core/main.c core/cmdlist.c core/module.c core/net.c core/func.c core/task.c core/syscall.c	\
+src_c := core/corestart16.c core/main.c core/cmdlist.c core/module.c 	\
+	core/net.c core/func.c core/task.c core/syscall.c	core/timer.c	\
+	core/sem.c															\
 	drv/pci/core.c drv/pci/rtl8139.c drv/pci/e1000.c drv/pci/pcnet32.c	\
-	io/disp.c io/interrupt.c io/kbd.c io/hd.c							\
-	mm/memory.c mm/page.c mm/slab.c										\
-	fs/block.c fs/fs.c fs/ext4.c fs/ext2.c								\
-	udp_cli/server.c													\
-	lib/crc32/crc32.c lib/avl/avl.c	lib/rgmng.c							\
+	io/disp.c io/interrupt.c io/kbd.c io/hd.c						\
+	mm/memory.c mm/page.c mm/slab.c									\
+	fs/block.c fs/fs.c fs/ext4.c fs/ext2.c							\
+	udp_cli/server.c												\
+	lib/crc32/crc32.c lib/avl/avl.c	lib/rgmng.c						\
 	../umexec/userbin.c
 # all of the '.S' source file 
 src_S := core/corestart.S core/entrance.S
@@ -37,7 +39,7 @@ obj := $(src_c:.c=.o) $(src_S:.S=.o)
 # -fno-builtin 不使用内建函数 否则无法编译名称为printf memcpy memset等等会被自动识别为内建函数的名称
 # -fno-optimize-sibling-calls 关闭了gcc对尾递归调用的优化，gcc的尾递归调用优化就是用jmp替换call 这样一来就导致调用栈信息缺失了，所以我们暂时关闭了这个优化来方便调试
 ASFLAGS = -I$(CURDIR) -Iinclude -fno-common -m32
-CFLAGS = -Wall -O2 -I$(CURDIR) -Iinclude -fno-stack-protector -fno-builtin -fno-strict-aliasing -fno-common -fno-optimize-sibling-calls -march=i386 -m32 -D__MLD__
+CFLAGS = -Wall -O2 -I$(CURDIR) -Iinclude -fno-stack-protector -fno-builtin -fno-strict-aliasing -fno-common -fno-optimize-sibling-calls -march=i386 -m32 -D__MLD__ -DMLD_DATE=\"$(shell date +%Y%m%d_%H%M%S)\"
 LDFLAGS = 
 
 # the target
@@ -68,6 +70,7 @@ core.elf: $(obj)
 	$(LD) -m elf_i386 $^ -T $(LDSCRIPT) -o .tmp_core2 .tmp_allsym1.o -M > core.map
 	nm -n .tmp_core2 | tools/allsym | gcc $(ASFLAGS) -c -o .tmp_allsym2.o -x assembler-with-cpp -
 	$(LD) -m elf_i386 $^ -T $(LDSCRIPT) -o $@ .tmp_allsym2.o -M > core.map
+	objdump -d core.elf > core.disasm
 
 $(obj):$(src)
 
@@ -80,8 +83,9 @@ module: drv/testdev/*.c
 	ld -r -m elf_i386 -o drv/testdev/testmod.mod drv/testdev/testmod.o drv/testdev/modfunc.o
 
 clean:
-	rm -f $(obj) *~									\
-	core.elf core.bin core.map core/*~				\
+	rm -rf $(obj) *~											\
+	core.elf core.bin core.disasm core.map core/*~				\
+	$(DESTISO_DIR) ../mkiso/*									\
 	.tmp_core1 .tmp_core2 .tmp_allsym1.o .tmp_allsym2.o			\
 	$(bootobj) boot/boot.elf boot/boot.bin boot/boot.map boot/*~ 
 

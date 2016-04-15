@@ -131,7 +131,7 @@ static void testsub_dispcpu()
 		:"%eax"
 	);
 
-	printf("current regs:\n"
+	printk("current regs:\n"
 		   "cs: 0x%#4x, ds: 0x%#4x, es: 0x%#4x, ss: 0x%#4x\n"
 		   "esp: 0x%#8x\n"
 		   "CR0: 0x%#8x, CR3: 0x%#8x\n",
@@ -160,7 +160,7 @@ static void intele1000_isr(struct pt_regs *regs, void *param)
     }
 }
 
-	// printf("icr:0x%#8x.\n", icr);
+	// printk("icr:0x%#8x.\n", icr);
 	if (E1000INTFLAG_RXT0 & icr)
 	{
 		u32 rdh = e1000_readR(dev, E1000REG_RDH);
@@ -200,7 +200,7 @@ static int intele1000_tx(netdev_t *netdev, void *buf, u32 len)
 	tdt = (tdt + 1) % (netdev->n_txdesc);
 	if (tdt == tdh)
 	{
-		printf("intele1000_tx() faild.\n");
+		printk("intele1000_tx() faild.\n");
 		/* no enough transmit descriptor */
 		return -1;
 	}
@@ -276,14 +276,14 @@ static int intele1000_devinit(struct pci_dev *dev)
 #if 0
             dev->bar_mem = dev->pcicfg.u.cfg.baseaddr[count] &
 						   dev->pcicfg.bar_mask[count];
-			// printf("dev->bar_mem : 0x%#8x\n", dev->bar_mem);
+			// printk("dev->bar_mem : 0x%#8x\n", dev->bar_mem);
 
 #else
         	u32 offset, range = (~(dev->pcicfg.bar_mask[count])) + 1 + PAGE_SIZE;
 			u32 va, pa;
             dev->bar_mem = dev->pcicfg.u.cfg.baseaddr[count] &
 						   dev->pcicfg.bar_mask[count];
-			va = 0x300000;
+			va = 0x10000000 + 0x1000;
 			pa = dev->bar_mem & (~(PAGE_SIZE - 1));
 
 			offset = dev->bar_mem - pa;
@@ -315,7 +315,7 @@ static int intele1000_devinit(struct pci_dev *dev)
     /* register the int */
     if (interrup_register(dev->pcicfg.u.cfg.intline, intele1000_isr, dev) != 0)
     {
-        printf("intele1000_isr register failed.\n");
+        printk("intele1000_isr register failed.\n");
         return -1;
     }
 
@@ -382,15 +382,15 @@ static void cmd_e1000stat_opfunc(char *argv[], int argc, void *param)
         for (count = 0; count < ARRAY_ELEMENT_SIZE(e1000_intstat); count++)
         {
             if ((count % 4) == 0)
-                printf("\n");
+                printk("\n");
         
-            printf("%2d-->%4d,    ", count + 1, e1000_intstat[count]);
+            printk("%2d-->%4d,    ", count + 1, e1000_intstat[count]);
         }
-        printf("\n");
+        printk("\n");
     }
     else
     {
-        printf("invalid command.\n");
+        printk("invalid command.\n");
     }
 }
 

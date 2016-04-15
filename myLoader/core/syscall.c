@@ -5,13 +5,12 @@
 
 asmlinkage void syscall_pubentry(struct pt_regs *regs, u32 syscall_num)
 {
-	printf("syscall %d...\n", syscall_num);
+	printk("syscall %d...\n", syscall_num);
 	switch (syscall_num)
 	{
-		case 0x10:
-
+		case 0x10:
 		{
-			printf("%s\n", regs->ebx);
+			printk("%s\n", regs->ebx);
 			break;
 		}
 		case 0x12:
@@ -21,7 +20,7 @@ asmlinkage void syscall_pubentry(struct pt_regs *regs, u32 syscall_num)
 		}
 		default:
 		{
-			printf("unkown syscall from task %d\n", current->pid);
+			printk("unkown syscall from task %d\n", current->pid);
 			dump_ptregs(regs);
 		}
 	}

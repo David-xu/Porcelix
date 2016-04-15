@@ -76,7 +76,7 @@ static void print_sp(void)
     "movl   %%eax, %0       \n\t"
     :"=r"(sp)
     );
-    printf("sp:0x%#8x\n", sp);
+    printk("sp:0x%#8x\n", sp);
 }
 */
 
@@ -92,7 +92,7 @@ void buddy_init(void)
 								   get_upper_range(n_pages * sizeof(struct page), PAGE_SIZE),
 								   RANGERESOURCE_TYPE_USED));
 
-    printf("pagelist size:%d(KB).\n", (n_pages * sizeof(struct page)) >> 10);
+    DEBUG("pagelist size:%d(KB).\n", (n_pages * sizeof(struct page)) >> 10);
 
     /* now init all pages, all of them are NOT in free list, can't be allocated */
 	memset(pagelist, 0, n_pages * sizeof(struct page));
@@ -259,7 +259,7 @@ void dump_freepage(void)
 	memarea_t *area = g_mmarea;
 	while (area < &(g_mmarea[MMAREA_NUM]))
 	{
-		printf("area %s  [0x%#8x--0x%#8x):\n",
+		printk("area %s  [0x%#8x--0x%#8x):\n",
 			   area->name, area->begin, area->begin + area->size);
 
 		totalKB = 0;
@@ -275,11 +275,11 @@ void dump_freepage(void)
 			{
 				blocknum++;
 			}
-			printf("rank %2d(%s): %4d blocks.\n", i, range_name[i], blocknum);
+			printk("rank %2d(%s): %4d blocks.\n", i, range_name[i], blocknum);
 			totalKB += blocknum << (i + 2);
 		}
 		
-		printf("Total memory left: %4dM %4dKB.\n", totalKB >> 10, totalKB & (0x3FF));
+		printk("Total memory left: %4dM %4dKB.\n", totalKB >> 10, totalKB & (0x3FF));
 		
 		area++;
 	}

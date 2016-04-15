@@ -1,14 +1,19 @@
 #include "config.h"
 
-/* æˆ‘ä»¬ä»¿ç…§linuxçš„è°ƒç”¨æ ˆä¿å­˜æ–¹å¼ å³äº§ç”Ÿexceptionæ—¶çš„ç°åœºä¼šä¿å­˜æˆå¦‚ä¸‹çš„æ ·å­
+.global thread_start
+.global tail_sched
+.global exit
+.global die
+
+/* ÎÒÃÇ·ÂÕÕlinuxµÄµ÷ÓÃÕ»±£´æ·½Ê½ ¼´²úÉúexceptionÊ±µÄÏÖ³¡»á±£´æ³ÉÈçÏÂµÄÑù×Ó
 
  *	40(%esp) - %oldss
  *	3C(%esp) - %oldesp
  *	38(%esp) - %eflags
  *	34(%esp) - %cs
  *	30(%esp) - %eip
- *	2C(%esp) - orig_eax			é”™è¯¯ç æˆ–è€…ç³»ç»Ÿè°ƒç”¨å·
- *	28(%esp) - %gs
+ *	2C(%esp) - orig_eax			´íÎóÂë»òÕßÏµÍ³µ÷ÓÃºÅ							ÖĞ¶Ï·µ»ØĞèÒªÌø¹ı
+ *	28(%esp) - %gs				Êµ¼Ê´¦Àíº¯ÊıÈë¿Ú ÓÉ¸÷¸öÖĞ¶ÏÈë¿Ú´¦Àí´úÂë×ÔĞĞÉèÖÃ	ÖĞ¶Ï·µ»ØĞèÒªÌø¹ı
  *	24(%esp) - %fs
  *	20(%esp) - %es
  *	1C(%esp) - %ds
@@ -20,9 +25,9 @@
  *	 4(%esp) - %ecx
  *	 0(%esp) - %ebx
 
-   å¦‚æœæ˜¯RING3è°ƒç”¨int 0x80è¿›å†…æ ¸ é‚£ä¹ˆéœ€è¦å°†eaxä¸­çš„ç³»ç»Ÿè°ƒç”¨å·ä¿å­˜åˆ°orig_eaxä½ç½® 
-   å¦‚æœæ˜¯RING3å‘ç”Ÿå¼‚å¸¸è¿›å†…æ ¸ åˆ™orig_eaxä½ç½®ä¼šæ˜¯x86 archå‹å…¥æ ˆä¸­çš„error_code å¯¹äºarchä¸äº§ç”Ÿerror_codeçš„ å…¥å£æ‰‹åŠ¨å‹å…¥0æ˜¯çš„æ ˆç»“æ„ä¿æŒä¸€è‡´
-   å¦‚æœæ˜¯RING0äº§ç”Ÿå¼‚å¸¸ åˆ™é¡¶éƒ¨ä¸¤ä¸ªoldss å’Œoldespä¸å­˜åœ¨ åŒæ ·éœ€è¦æ ¹æ®å¼‚å¸¸ç±»å‹è€ƒè™‘æ˜¯å¦å‹å…¥0ä½œä¸ºerror_codeçš„å¡«å……
+   Èç¹ûÊÇRING3µ÷ÓÃint 0x80½øÄÚºË ÄÇÃ´ĞèÒª½«eaxÖĞµÄÏµÍ³µ÷ÓÃºÅ±£´æµ½orig_eaxÎ»ÖÃ 
+   Èç¹ûÊÇRING3·¢ÉúÒì³£½øÄÚºË Ôòorig_eaxÎ»ÖÃ»áÊÇx86 archÑ¹ÈëÕ»ÖĞµÄerror_code ¶ÔÓÚarch²»²úÉúerror_codeµÄ Èë¿ÚÊÖ¶¯Ñ¹Èë0ÊÇµÄÕ»½á¹¹±£³ÖÒ»ÖÂ
+   Èç¹ûÊÇRING0²úÉúÒì³£ Ôò¶¥²¿Á½¸öoldss ºÍoldesp²»´æÔÚ Í¬ÑùĞèÒª¸ù¾İÒì³£ÀàĞÍ¿¼ÂÇÊÇ·ñÑ¹Èë0×÷Îªerror_codeµÄÌî³ä
    */
 
 #define	SAVE_ALL			\
@@ -70,7 +75,7 @@ intproc_##irq:								\
 	movl	%esp, %eax;						\
 	call	*%edi;							\
 	call	_8259master_EOI;				\
-	call	tail_sched;	/* å¯åŠ¨ä¸€æ¬¡è°ƒåº¦ */	\
+	call	tail_sched;	/* Æô¶¯Ò»´Îµ÷¶È */	\
 	RESTORE_ALL;							\
 	addl	$8, %esp;						\
 	iret
@@ -101,7 +106,7 @@ intproc_##irq:								\
 	movl	%esp, %eax;						\
 	call	*%edi;							\
 	call	_8259slaver_EOI;				\
-	call	tail_sched;	/* å¯åŠ¨ä¸€æ¬¡è°ƒåº¦ */	\
+	call	tail_sched;	/* Æô¶¯Ò»´Îµ÷¶È */	\
 	RESTORE_ALL;							\
 	addl	$8, %esp;						\
 	iret
@@ -121,95 +126,87 @@ INTENTRY_8259SLAVER(15)
 .global lapictimer
 lapictimer_entrance:
 	pushl	%eax
-	pushl	%ebx
-	pushl	%ecx
-	pushl	%edx
-	push	%ds
-	push	%es
-
-	movl	$0, 0xfee000b0		/* send the EOI to lapic */
-
-	call lapictimer
-
-	pop		%es
-	pop		%ds
-	popl	%edx
-	popl	%ecx
-	popl	%ebx
-	popl	%eax
-	iret
+	pushl	$lapictimer
+	jmp		exp_pubpath
 
 .global syscall_entry
 .global syscall_pubentry
 syscall_entry:
-	pushl	%eax					/* ç³»ç»Ÿè°ƒç”¨å· */
-	pushl	$syscall_pubentry		/* ç³»ç»Ÿè°ƒç”¨ç»Ÿä¸€å…¥å£ */
+	pushl	%eax					/* ÏµÍ³µ÷ÓÃºÅ */
+	pushl	$syscall_pubentry		/* ÏµÍ³µ÷ÓÃÍ³Ò»Èë¿Ú */
 	jmp		exp_pubpath
 
 .global NMIfault_entry
 .global do_nmifault
 NMIfault_entry:
 	pushl	$0
-	pushl	$do_nmifault			/* å®é™…çš„å¼‚å¸¸å¤„ç†å…¥å£ */
+	pushl	$do_nmifault			/* Êµ¼ÊµÄÒì³£´¦ÀíÈë¿Ú */
 	jmp		exp_pubpath
 
 
 .global DFfault_entry
 .global do_dffault
 DFfault_entry:
-	pushl	$do_dffault				/* å®é™…çš„å¼‚å¸¸å¤„ç†å…¥å£ */
+	pushl	$do_dffault				/* Êµ¼ÊµÄÒì³£´¦ÀíÈë¿Ú */
 	jmp		exp_pubpath
 
 /* some fault entry */
 .global TSSfault_entry
 .global do_tssfault
 TSSfault_entry:
-	pushl	$do_tssfault			/* å®é™…çš„å¼‚å¸¸å¤„ç†å…¥å£ */
+	pushl	$do_tssfault			/* Êµ¼ÊµÄÒì³£´¦ÀíÈë¿Ú */
 	jmp		exp_pubpath
 
 .global NPfault_entry
 .global do_npfault
 NPfault_entry:
-	pushl	$do_npfault				/* å®é™…çš„å¼‚å¸¸å¤„ç†å…¥å£ */
+	pushl	$do_npfault				/* Êµ¼ÊµÄÒì³£´¦ÀíÈë¿Ú */
 	jmp		exp_pubpath
 	
 .global SSfault_entry
 .global do_ssfault
 SSfault_entry:
-	pushl	$do_ssfault				/* å®é™…çš„å¼‚å¸¸å¤„ç†å…¥å£ */
+	pushl	$do_ssfault				/* Êµ¼ÊµÄÒì³£´¦ÀíÈë¿Ú */
 	jmp		exp_pubpath
 	
 .global GPfault_entry
 .global do_gpfault
 GPfault_entry:
-	pushl	$do_gpfault				/* å®é™…çš„å¼‚å¸¸å¤„ç†å…¥å£ */
+	pushl	$do_gpfault				/* Êµ¼ÊµÄÒì³£´¦ÀíÈë¿Ú */
 	jmp		exp_pubpath
 
 
 
 .global PFfault_entry
 .global do_pagefault
-.global kt_after_switch
-.global tail_sched
 PFfault_entry:
-	pushl	$do_pagefault			/* å®é™…çš„å¼‚å¸¸å¤„ç†å…¥å£ */
-exp_pubpath:						/* æ‰€æœ‰çš„å¼‚å¸¸å…¥å£å…¨éƒ¨èµ°è¿™ä¸ªè·¯å¾„ */
+	pushl	$do_pagefault			/* Êµ¼ÊµÄÖĞ¶Ï´¦ÀíÈë¿Ú */
+	
+	/* ËùÓĞµÄÖĞ¶Ï(°üÀ¨Òì³£ºÍÏİÚå)Èë¿ÚÈ«²¿×ßÕâ¸öÂ·¾¶ */
+exp_pubpath:						
 	SAVE_ALL
+
+	/*  */
 	movl	$SYSDESC_DATA, %eax
 	movw	%ax, %ds
 	movw	%ax, %es
-kt_after_switch:					/* è¯¥ä½ç½®ä¹Ÿæ˜¯å†…æ ¸çº¿ç¨‹å¯åŠ¨çš„ä½ç½®ï¼Œè°ƒåº¦å™¨åˆ‡æ¢åˆ°æ–°å»ºçš„å†…æ ¸çº¿ç¨‹æ—¶ä¼šä»¥æ­¤ä¸ºå…¥å£ */
-	movl	0x14(%esp), %ebp		/* å¯¹äºä¸­æ–­æƒ…å†µä¸‹è€Œè¨€ 0x14(%esp) ä¿å­˜çš„æ˜¯å½“å‰çš„%ebpå€¼ å¯¹äºæ–°å»ºktè€Œè¨€ 0x14(%esp)ä¸­ä¿å­˜çš„æ˜¯éœ€è¦è®¾ç½®çš„è¿™ä¸ªktçš„%ebpå€¼ */
-	movl	0x28(%esp), %edi		/* ktåˆ›å»ºè¿‡ç¨‹ä¼šåœ¨ 0x28(%esp) ä¸Šå¡«å†™ktå…¥å£å‡½æ•°åœ°å€ */
-	movl	0x2c(%esp), %edx		/* error code, irq or syscall number */
-	movl	%esp, %eax				/* */
-	call	*%edi					/* 0x28(%esp)çš„ä½ç½®ä¸Šå­˜ç€å®é™…å¤„ç†å…¥å£å‡½æ•° æ­¤å¤„æœ‰å‡ ç§å¯èƒ½
-									   1. å¯¹äºå¼‚å¸¸å¯¼è‡´çš„é™·å…¥ åˆ™è°ƒç”¨å…¥å£å¤„å‹å…¥çš„å¤„ç†å‡½æ•°
-									   2. å¯¹äºå†…æ ¸çº¿ç¨‹åˆ›å»º åˆ™è¯¥å¤„å­˜æ”¾åˆ›å»ºæ—¶æ„é€ è°ƒç”¨æ ˆæ˜¯æ”¾å…¥çš„å†…æ ¸çº¿ç¨‹å‡½æ•°
+					
+	movl	0x14(%esp), %ebp		/* 0x14(%esp) ±£´æµÄÊÇµ±Ç°µÄ%ebpÖµ */
+	movl	0x28(%esp), %edi		/* 0x28(%esp)µÄÎ»ÖÃÉÏ´æ×ÅÊµ¼Ê´¦ÀíÈë¿Úº¯Êı, ÊÇÔÚÊµ¼ÊµÄÖĞ¶ÏÈë¿ÚÑ¹ÈëµÄ´¦ÀíµØÖ· */
+	movl	0x2c(%esp), %edx		/* 0x2c(%esp)Î»ÖÃ´æ·Åµ÷ÓÃ²ÎÊı, ¿ÉÄÜÊÇÒÔÏÂ¼¸ÖÖ¿ÉÄÜ
+									 * 1. error code, Õë¶ÔÒì³£´¦Àí
+									 * 2. irq, Õë¶ÔÖĞ¶Ï
+									 * 3. syscall number, Õë¶Ôint 0x80µÄsyscallÏİÈë
 									 */
-#if 1
-	call	tail_sched				/* å¯åŠ¨ä¸€æ¬¡è°ƒåº¦ */
-#endif
+	movl	%esp, %eax				/* */
+	call	*%edi					/* Ö´ĞĞÊµ¼Ê´¦Àíº¯Êı */
+	call	tail_sched				/* Æô¶¯Ò»´ÎÎ²µ÷¶È */
+	/*
+	 * ¸Ã´¦ÎªÏß³ÌÆô¶¯µã, µ÷¶ÈÆ÷ÇĞ»»µ½ĞÂ½¨µÄÏß³ÌÊ±»áÒÔ´ËÎªÈë¿Ú, 
+	 * ÆÕÍ¨Ïß³ÌºÍÄÚºËÏß³ÌµÄÇø±ğÔÚÓë¹¹ÔìµÄÖĞ¶Ï·µ»Øµ÷ÓÃÕ»²»Í¨
+	 */
+thread_start:
 	RESTORE_ALL
 	addl	$8, %esp				/* skip the %gs and orig_code */
+
 	iret

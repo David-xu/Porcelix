@@ -216,7 +216,7 @@ memcache_t *memcache_create(u32 s_blk, u32 r_slb, char *name)
 
 	init_onecache(ret, name, s_blk, r_slb);
 
-	/*æŠŠè¿™ä¸ªmemcacheåŠ å…¥å…¨å±€memcacheé“¾è¡¨ æ³¨æ„è¿™é‡Œåˆ©ç”¨äº†cache_cacheä¸­ç©ºé—²çš„cachelistä½œä¸ºå¤´ */
+	/*°ÑÕâ¸ömemcache¼ÓÈëÈ«¾ÖmemcacheÁ´±í ×¢ÒâÕâÀïÀûÓÃÁËcache_cacheÖĞ¿ÕÏĞµÄcachelist×÷ÎªÍ· */
 	list_add_head(&(ret->cachelist), &(cache_cache.cachelist));
 
 	return ret;
@@ -248,7 +248,7 @@ void memcache_destroy(memcache_t *cache)
 	 * no need to free
 	 */
 
-	/* æŠŠè¿™ä¸ªmemcacheä»å…¨å±€é“¾è¡¨ä¸­æ‘˜é“¾ */
+	/* °ÑÕâ¸ömemcache´ÓÈ«¾ÖÁ´±íÖĞÕªÁ´ */
 	list_remove(&(cache->cachelist));
 
 	memcache_free(&cache_cache, cache);
@@ -267,12 +267,12 @@ void dump_memcache(void)
 {
 	memcache_t *p;
 	u32 i = 0;
-	printf("Totally %d memcache in system:\n"
+	printk("Totally %d memcache in system:\n"
 		   "name:\t\ts_blk\tn_blk\n",
 		   cache_cache.n_blk);
 	LIST_FOREACH_ELEMENT(p, &(cache_cache.cachelist), cachelist)
 	{
-		printf("%s\t%d\t%d\n", p->name, p->s_blk, p->n_blk);
+		printk("%s\t%d\t%d\n", p->name, p->s_blk, p->n_blk);
 		i++;
 	}
 

@@ -10,7 +10,7 @@ void die(void);
         {                                                           \
             if (!(cond))                                            \
             {                                                       \
-                printf("ASSERT!\nFile:%s, Func:%s, Line:%d\n%s\n",  \
+                printk("ASSERT!\nFile:%s, Func:%s, Line:%d\n%s\n",  \
                        __FILE__, __func__, __LINE__, #cond);        \
                 die();												\
             }                                                       \
@@ -18,9 +18,9 @@ void die(void);
 
 #define	ERROR(fmt, ...)												\
 		{															\
-			printf("ERROR!\nFile:%s, Func:%s, Line:%d\n",			\
+			printk("ERROR!\nFile:%s, Func:%s, Line:%d\n",			\
 				   __FILE__, __func__, __LINE__);					\
-			printf(fmt, ##__VA_ARGS__);								\
+			printk(fmt, ##__VA_ARGS__);		\
 			die();													\
 		}
 

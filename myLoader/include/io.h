@@ -46,21 +46,22 @@ static inline u32 inl(u16 port)
 }
 
 struct console{
-    char *name;
-    void (*init)(struct console *con);
-    void (*write)(struct console *con, char *buf, u16 len);
-    u16 (*read)(struct console *con, char *buf, u16 len);
-    
-    void *param;
+	char *name;
+	void (*init)(struct console *con);
+	void (*write)(struct console *con, char *buf, u16 len);
+	u16 (*read)(struct console *con, char *buf, u16 len);
 
-    void (*spcdisp)(struct console *con, char *buf, u16 len, u8 swch);
+	void *param;
+
+	/* 在特殊位置显式 */
+	void (*spcdisp)(struct console *con, char *buf, u16 len, u8 swch);
 	u8	spcdisp_swch;				/* 1: switch on, 0: switch off */
 	char spcbuff[32];				/* line 0, right hand */
 };
 
 void disp_init() _SECTION_(.init.text);
 
-int printf(char *fmt, ...);
+int printk(char *fmt, ...);
 int conspc_printf(char *fmt, ...);
 void conspc_off(void);
 int sprintf(char *buf, char *fmt, ...);

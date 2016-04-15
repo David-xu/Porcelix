@@ -78,6 +78,13 @@ extern void jump2pe(void);
  0260/4	2.10+	init_size	Linear memory required during initialization
  0264/4	2.11+	handover_offset	Offset of handover entry point
  */
+
+/* Internal svga startup constants */
+#define NORMAL_VGA	0xffff		/* 80x25 mode */
+#define EXTENDED_VGA	0xfffe		/* 80x50 mode */
+#define ASK_VGA		0xfffd		/* ask for it at bootup */
+
+
 typedef struct _linux_boothead {
 	unsigned char		pad[0x1f1];
 	unsigned char		setup_sects;

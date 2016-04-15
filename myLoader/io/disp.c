@@ -4,6 +4,7 @@
 #include "assert.h"
 #include "module.h"
 #include "task.h"
+#include "timer.h"
 
 #define VGA_RSELECT         (0x03D4)
 #define VGA_RDATA           (0x03D5)
@@ -29,7 +30,6 @@ static void vga_bks(struct console *con)
     {
         if (param->y_pos == 0)
         {
-
             return;
         }
         param->x_pos = param->x_max - 1;
@@ -154,9 +154,6 @@ static void vga_console_spcdisp(struct console *con, char *buf, u16 len, u8 swch
 	if (swch == 0)
 	{
 		con->spcdisp_swch = 0;
-	}
-	else if (swch != 1)
-	{
 		return;
 	}
 
@@ -219,22 +216,21 @@ void test_bks()
 
 void disp_init()
 {    
-    vga_console.init(&vga_console);
+	vga_console.init(&vga_console);
 
-    ((struct vga_param *)(vga_console.param))->screen_clear(vga_console.param);
+	((struct vga_param *)(vga_console.param))->screen_clear(vga_console.param);
 
-    printf("********************************************************************************");
-    printf("*                                                                              *");
-    printf("*              This is myLoader, all rights reserved by David.                 *");
-    printf("*                                                                              *");
-    printf("********************************************************************************\n");
-    printf("System Begin...\n");
+	printk("********************************************************************************");
+	printk("*                                                                              *");
+	printk("*       This is myLoader, all rights reserved by David.(%s)       *", get_date_string());
+	printk("*                                                                              *");
+	printk("********************************************************************************");
+	printk("System Begin...\n");
 }
 
 
 /******************************************************************************/
 /*  this is the print functions                                               */
-
 /******************************************************************************/
 
 
@@ -303,8 +299,7 @@ static u16 num_fmt(u32 num, char *buf, u8 basenum, u16 width, char prefix, char 
     {
         ASSERT(0);
     }
-    
-    
+
     return width;
 }
 
@@ -326,18 +321,31 @@ enum PRINTF_STATE
 
 
 /* let's keep it simple */
-int printf(char *fmt, ...)
+int printk(char *fmt, ...)
 {
 	u32 *args = ((u32 *)&(fmt)) + 1;
-	char textbuf[512];
-	int len = vsprintf(textbuf, fmt, args);
+	static char textbuf[512];
+	int len = 0;
+
+#if 0
+	u64 num;
+	u32 num1, num2;
+	num = sys_tick;
+	do_div(num, HZ);
+	num1 = (u32)num;
+	num = sys_tick * 1000;
+	do_div(num, HZ);
+	num2 = do_div(num, 1000);
+	len += sprintf(textbuf, "[% 6d.%#3d]", num1, num2);
+#endif
+	
+	len += vsprintf(textbuf + len, fmt, args);
 
 	vga_console.write(&vga_console, textbuf, len);
 
 	return 0;
 }
-EXPORT_SYMBOL(printf);
-
+EXPORT_SYMBOL(printk);
 
 int conspc_printf(char *fmt, ...)
 {
@@ -417,8 +425,6 @@ int vsprintf(char *buf, char *fmt, u32 *args)
                 /* (state == S_PRE_FLAG) || (state == S_PRE_WIDTH) */
                 ASSERT((state == S_PRE_FLAG) || (state == S_PRE_WIDTH));
 
-
-
                 /* change to S_PRE_PERC */
                 state = S_PRE_PERC;
             }
@@ -464,8 +470,7 @@ int vsprintf(char *buf, char *fmt, u32 *args)
             }
             else
             {
-            
-   ASSERT(0);
+				ASSERT(0);
             }
         }
         else    /* char */
@@ -482,7 +487,7 @@ int vsprintf(char *buf, char *fmt, u32 *args)
             }
         }
     }
-    buf[idx++] = '\0';
+    buf[idx] = '\0';
 
     return idx;
 }
@@ -496,17 +501,20 @@ void dump_stack(u32 ebp)
 	u32 top_ebp = (u32)(current->stack) + TASKSTACK_SIZE;
 	char *funcname;
 
-	printf("call stack:\n");
-
-	while (cur_ebp != (u32 *)top_ebp)
+	while (cur_ebp < (u32 *)top_ebp)
 	{
-		cur_retaddr = *(cur_ebp + 1);
+		if ((u32)cur_ebp < MM_NORMALMEM_RANGE)
+		{
+			cur_retaddr = *(cur_ebp + 1);
 
-		funcname = allsym_resolvaddr(cur_retaddr, &funcbase);
-		printf("ebp: 0x%#8x   eip: 0x%#8x   %s()  +  0x%#4x\n", (u32)cur_ebp, cur_retaddr, &(funcname[1]), cur_retaddr - funcbase);
+			funcname = allsym_resolvaddr(cur_retaddr, &funcbase);
+			printk("ebp: 0x%#8x   eip: 0x%#8x   %s()  +  0x%#4x\n", (u32)cur_ebp, cur_retaddr, &(funcname[1]), cur_retaddr - funcbase);
 
-		/* pop one stack from */
-		cur_ebp = (u32 *)(*cur_ebp);
+			/* pop one stack from */
+			cur_ebp = (u32 *)(*cur_ebp);
+		}
+		else
+			printk("invalid ebp: 0x%#8x", cur_ebp);
 	}
 }
 
@@ -517,29 +525,27 @@ void dump_ram(void *addr, u16 len)
 {
     u16 count;
     for (count = 0; count < len; count++)
-
     {
         if ((count % DUMPRAM_LINESIZE) == 0)
         {
-            printf("0x%#8x: ", (u32)addr);
+            printk("0x%#8x: ", (u32)addr);
         }
 
-        printf("%#2x ", *((u8 *)addr));
+        printk("%#2x ", *((u8 *)addr));
         addr++;
 
         if ((count % DUMPRAM_LINESIZE) == (DUMPRAM_LINESIZE / 2 - 1))
         {
-            printf("    ");
+            printk("    ");
         }
         
         if ((count % DUMPRAM_LINESIZE) == (DUMPRAM_LINESIZE - 1))
         {
-            printf("\n");
+            printk("\n");
         }
     }
     if ((count % DUMPRAM_LINESIZE) != 0)
     {
-        printf("\n");
+        printk("\n");
     }
 }
-

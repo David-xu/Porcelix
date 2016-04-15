@@ -20,17 +20,17 @@ static void cmd_ramrw_opfunc(char *argv[], int argc, void *param)
         if (memcmp("-rb", argv[1], sizeof("-rb")) == 0)
         {
             len_val = *((u8 *)addr);
-            printf("Read byte from 0x%#8x:0x%#2x.\n", addr, (u8)len_val);
+            printk("Read byte from 0x%#8x:0x%#2x.\n", addr, (u8)len_val);
         }
         else if (memcmp("-rw", argv[1], sizeof("-rw")) == 0)
         {
             len_val = *((u16 *)addr);
-            printf("Read word from 0x%#8x:0x%#4x.\n", addr, (u16)len_val);
+            printk("Read word from 0x%#8x:0x%#4x.\n", addr, (u16)len_val);
         }
         else if (memcmp("-rl", argv[1], sizeof("-rl")) == 0)
         {
             len_val = *((u32 *)addr);
-            printf("Read long from 0x%#8x:0x%#8x.\n", addr, len_val);
+            printk("Read long from 0x%#8x:0x%#8x.\n", addr, len_val);
         }
         else
         {
@@ -69,7 +69,7 @@ static void cmd_ramrw_opfunc(char *argv[], int argc, void *param)
     return;
 
 invalidparam:
-    printf("-r[b][w][l] [addr]      : Read [BYTE WORD LONG] value from addr.\n"
+    printk("-r[b][w][l] [addr]      : Read [BYTE WORD LONG] value from addr.\n"
 		   "-r          [addr] [len]: Dump RAM value from addr.\n"
            "-w[b][w][l] [addr] [val]: Write RAM value to addr.\n");
 }
@@ -94,19 +94,19 @@ static void cmd_iorw_opfunc(char *argv[], int argc, void *param)
         {
             addr = str2num(argv[2]);
             val = inb((u16)addr);
-            printf("Read byte from I/O 0x%#4x:0x%#2x.\n", (u16)addr, (u8)val);
+            printk("Read byte from I/O 0x%#4x:0x%#2x.\n", (u16)addr, (u8)val);
         }
         else if (memcmp("-rw", argv[1], sizeof("-rw")) == 0)
         {
             addr = str2num(argv[2]);
             val = inw((u16)addr);
-            printf("Read word from I/O 0x%#4x:0x%#4x.\n", (u16)addr, (u16)val);
+            printk("Read word from I/O 0x%#4x:0x%#4x.\n", (u16)addr, (u16)val);
         }
         else if (memcmp("-rl", argv[1], sizeof("-rl")) == 0)
         {
             addr = str2num(argv[2]);
             val = inl((u16)addr);
-            printf("Read long from I/O 0x%#4x:0x%#8x.\n", (u16)addr, val);
+            printk("Read long from I/O 0x%#4x:0x%#8x.\n", (u16)addr, val);
         }
         else
         {
@@ -148,7 +148,7 @@ static void cmd_iorw_opfunc(char *argv[], int argc, void *param)
     return;
 
 invalidparam:
-    printf("-r[b][w][l] [addr]      : Read I/O value from addr.\n"
+    printk("-r[b][w][l] [addr]      : Read I/O value from addr.\n"
            "-w[b][w][l] [addr] [val]: write I/O value to addr.\n");
 }
 
@@ -209,18 +209,18 @@ static void a20enable_test(void)
            (u32)p2, v2);
     if (v1 == v2)
     {
-        printf("a20 test faild.\n");
+        printk("a20 test faild.\n");
         die();
     }
-    printf("a20 test success.\n");
+    DEBUG("a20 test success.\n");
 }
 
 asmlinkage void do_pagefault(struct pt_regs *regs, u32 error_code)
 {
-	u32 cr2 = getCR2();			/* å‡ºé”™åœ°å€ */
+	u32 cr2 = getCR2();			/* ³ö´íµØÖ· */
 #if 1
 	dump_ptregs(regs);
-	printf("PF fault. error_code:0x%#8x, error addr:0x%#8x\n", error_code, cr2);
+	printk("PF fault. error_code:0x%#8x, error addr:0x%#8x\n", error_code, cr2);
 
 #if 0
 	static int i = 0;
@@ -242,42 +242,42 @@ asmlinkage void do_pagefault(struct pt_regs *regs, u32 error_code)
 asmlinkage void do_nmifault(struct pt_regs *regs, u32 error_code)
 {
 	dump_ptregs(regs);
-	printf("NMI fault. error_code:0x%#8x\n", error_code);
+	printk("NMI fault. error_code:0x%#8x\n", error_code);
 	die();
 }
 
 asmlinkage void do_dffault(struct pt_regs *regs, u32 error_code)
 {
 	dump_ptregs(regs);
-	printf("DF fault. error_code:0x%#8x\n", error_code);
+	printk("DF fault. error_code:0x%#8x\n", error_code);
 	die();
 }
 
 asmlinkage void do_tssfault(struct pt_regs *regs, u32 error_code)
 {
 	dump_ptregs(regs);
-	printf("TSS fault. error_code:0x%#8x\n", error_code);
+	printk("TSS fault. error_code:0x%#8x\n", error_code);
 	die();
 }
 
 asmlinkage void do_npfault(struct pt_regs *regs, u32 error_code)
 {
 	dump_ptregs(regs);
-	printf("NP fault. error_code:0x%#8x\n", error_code);
+	printk("NP fault. error_code:0x%#8x\n", error_code);
 	die();
 }
 
 asmlinkage void do_ssfault(struct pt_regs *regs, u32 error_code)
 {
 	dump_ptregs(regs);
-	printf("SS fault. error_code:0x%#8x\n", error_code);
+	printk("SS fault. error_code:0x%#8x\n", error_code);
 	die();
 }
 
 asmlinkage void do_gpfault(struct pt_regs *regs, u32 error_code)
 {
 	dump_ptregs(regs);
-	printf("GP fault. error_code:0x%#8x\n", error_code);
+	printk("GP fault. error_code:0x%#8x\n", error_code);
 	die();
 }
 
@@ -381,7 +381,7 @@ static int rr_cmp(const void *a, const void *b)
 
 int resoure_add_range(resource_t *sr, u32 begin, u32 size, u32 flag)
 {
-	u32 i, cur_size = 0;
+	u32 i, cur_size = 0, cur_flag = 0;
 	u64 cur_begin = 0;
 
 	if ((sr->n_range + 2) > MM_RANGERESOURCE_MAXNUM)
@@ -397,6 +397,7 @@ int resoure_add_range(resource_t *sr, u32 begin, u32 size, u32 flag)
 		{
 			cur_begin = sr->rd[i].begin;
 			cur_size = sr->rd[i].size;
+			cur_flag = sr->rd[i].flag;
 			break;
 		}
 	}
@@ -436,7 +437,7 @@ void dump_resource(resource_t *sr)
 {
 	u32 i;
 	for (i = 0; i < sr->n_range; i++)
-		printf("mem [0x%#8x : 0x%#8x)  0x%#8x.\n",
+		printk("mem [0x%#8x : 0x%#8x)  0x%#8x.\n",
 			   sr->rd[i].begin, sr->rd[i].begin + sr->rd[i].size,
 			   sr->rd[i].flag);
 }
@@ -472,7 +473,7 @@ static void cmd_memstat_opfunc(char *argv[], int argc, void *param)
 	return;
 
 print_usage:
-	printf("memstat -p,  stat page\n"
+	printk("memstat -p,  stat page\n"
 		   "        -mr, stat mem resource\n"
 		   "        -c,  stat mem cache\n");
 }
@@ -498,7 +499,7 @@ void mem_init(void)
     if ((outport_cmd & 0x02) == 0)
     {
         kbdctrl_outport_w(outport_cmd | 0x02);
-        printf("Just turn on the A20.\n");
+        DEBUG("Just turn on the A20.\n");
     }
 
     a20enable_test();
@@ -509,9 +510,9 @@ void mem_init(void)
                raminfo->ax * 1024 + 
                raminfo->bx * 1024 * 64;
 
-    printf("Detected ram size is : %dM %dK, ", ram_size >> 20, (ram_size >> 10) & 0x3FF);
+    printk("Detected ram size is : %dM %dK, ", ram_size >> 20, (ram_size >> 10) & 0x3FF);
 	ram_size = get_lower_range(ram_size, PAGE_SIZE);
-    printf("we used %dM %dK\n", ram_size >> 20, (ram_size >> 10) & 0x3FF);
+    printk("we used %dM %dK\n", ram_size >> 20, (ram_size >> 10) & 0x3FF);
 
 	/* init the whole mem resource */
 	mem_resource.rd[mem_resource.n_range].begin = 0;
@@ -519,9 +520,8 @@ void mem_init(void)
 	mem_resource.rd[mem_resource.n_range].flag = RANGERESOURCE_TYPE_IDLE;
 	(mem_resource.n_range)++;
 
-    printf("Total RAM space: %dM.\n", ram_size >> 20);
-    printf("The section '.init.text' end position: %#8x.\n", GET_SYMBOLVALUE(symbol_inittext_end));
-    printf("System end position: %#8x, Total size: %dK\n", GET_SYMBOLVALUE(symbol_sys_end), GET_SYMBOLVALUE(symbol_sys_end) / 1024);
+    DEBUG("The section '.init.text' end position: %#8x.\n", GET_SYMBOLVALUE(symbol_inittext_end));
+    DEBUG("System end position: %#8x, Total size: %dK\n", GET_SYMBOLVALUE(symbol_sys_end), GET_SYMBOLVALUE(symbol_sys_end) / 1024);
 	/* init the system ram range, we add some hole space after the system */
 	ASSERT(0 == resoure_add_range(&mem_resource, 0,
 								   get_upper_range(GET_SYMBOLVALUE(symbol_sys_end) + MM_HOLEAFTER_SYSRAM, PAGE_SIZE),
@@ -558,7 +558,7 @@ void mem_init(void)
 int mmap(u32 va, u32 pa, u32 len, u32 usermode)
 {
 	ASSERT(((va & (PAGE_SIZE - 1)) == 0) && ((pa & (PAGE_SIZE - 1)) == 0));
-	ASSERT(va < MM_NORMALMEM_RANGE);
+	ASSERT(va >= MM_NORMALMEM_RANGE);
 
 	len = (len + PAGE_SIZE - 1) & (~(PAGE_SIZE - 1));
 

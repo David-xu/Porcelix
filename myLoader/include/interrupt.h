@@ -17,19 +17,19 @@ struct pt_regs {
 	long eax;
 	int  xds;
 	int  xes;
-	int  xfs;
-	int  xgs;
-	long orig_eax;
-	long eip;
-	int  xcs;
-	long eflags;
-	long esp;
-	int  xss;
+	int  xfs;				
+	int  xgs;				/* 0x28 */
+	long orig_eax;			/* 0x2C */
+	long eip;				/* 0x30 */
+	int  xcs;				/* 0x34 */
+	long eflags;			/* 0x38 */
+	long esp;				/* 0x3C */
+	int  xss;				/* 0x40 */
 };
 
 static inline void dump_eflags(u32 eflags)
 {
-	printf("eflags: 0x%#8x\n%s %s %s %s %s %s %s IOPL:%d %s %s %s %s %s %s %s %s %s\n",
+	printk("eflags: 0x%#8x\n%s %s %s %s %s %s %s IOPL:%d %s %s %s %s %s %s %s %s %s\n",
 		   eflags,
 		   (eflags & EFLAGSMASK_ID) ? "ID" : "id",
 		   (eflags & EFLAGSMASK_VIP) ? "VIP" : "vip",
@@ -63,7 +63,7 @@ static inline void dump_ptregs(struct pt_regs *regs)
 		:
 		:"%eax"
 	);
-	printf("\n\n"
+	printk("\n\n"
 		   "ebx:0x%#8x, ecx:0x%#8x, edx:0x%#8x\n"
 		   "esi:0x%#8x, edi:0x%#8x, ebp:0x%#8x\n"
 		   " ds:0x%#4x,      es:0x%#4x,      fs:0x%#4x,  gs:0x%#8x(entry function)\n"
@@ -77,14 +77,14 @@ static inline void dump_ptregs(struct pt_regs *regs)
 
 	if ((cur_cs & 0x3) == ((regs->xcs) & 0x3))
 	{
-		printf("current ss:0x%#4x, esp:0x%#8x\n", (u16)cur_ss, cur_esp);
+		printk("current ss:0x%#4x, esp:0x%#8x\n", (u16)cur_ss, cur_esp);
 	}
 }
 
 #define _cli()      do {asm volatile("cli":::"memory");} while (0)
 #define _sti()      do {asm volatile("sti":::"memory");} while (0)
 
-static inline unsigned long native_save_fl(void)
+static inline u32 native_save_fl(void)
 {
 	u32 flags;
 
@@ -131,23 +131,19 @@ static inline void native_restore_fl(u32 flags)
 
 typedef void (*intproc_ent)(struct pt_regs *regs, void *param);
 
-typedef struct interrupt_proc {
+typedef struct int_proc {
     struct list_head int_list;          /* interrupt list */
     intproc_ent intf;
     void *param;
-} interrupt_proc_t;
+} int_proc_t;
 
-extern void lapictimer_entrance(void);
-
+void lapictimer_entrance(void);
 
 void interrupt_init();
 
 int interrup_register(int irq, intproc_ent intf, void *param);
 
 void trap_init(void);
-
-asmlinkage void intprocjmp_master(struct pt_regs *regs, u32 irq);
-asmlinkage void intprocjmp_slaver(struct pt_regs *regs, u32 irq);
 
 
 #endif

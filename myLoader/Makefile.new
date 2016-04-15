@@ -1,0 +1,38 @@
+# This is myloader main Makefile.
+
+PHONY :=
+
+
+
+SOURCE_DIR := $(CURDIR)
+
+
+# Build dir, if user pass the parameter 'O', use it.
+#
+ifeq ("$(origin O)", "command line")
+	BUILD_DIR := $(O)
+endif
+
+include $(SOURCE_DIR)/scripts/build.include
+
+core := core/
+driver := driver/
+
+all_dest := $(core) $(driver)
+
+all: $(core) $(driver)
+	@echo $(all_dest)
+
+$(core) : FORCE
+	$(shell [ -d $@ ] || mkdir -p $@)
+
+$(driver) : FORCE
+	mkdir $@
+
+PHONY += all
+
+PHONY += clean
+
+FORCE:
+
+.PHONY = $(PHONY)

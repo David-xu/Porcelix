@@ -5,9 +5,34 @@
 #include "list.h"
 #include "memory.h"
 #include "section.h"
+#include "spinlock.h"
 
-#define TASKSTACK_RANGE         BUDDY_RANK_8K
-#define TASKSTACK_SIZE          (PAGE_SIZE << TASKSTACK_RANGE)
+typedef struct _wait_queue {
+	/* wait list head */
+	struct list_head	wlh;
+	/* wait queue locker */
+	spinlock_t			wlock;
+} wait_queue_t;
+
+struct _task;
+
+typedef enum _wakeup_reason {
+	WU_REASON_TIMEOUT = 0,
+	WU_REASON_WAKEUP,
+	WU_REASON_NUM
+} wakeup_reason_e;
+
+#define	TIMEOUT_INFINIT			0xFFFFFFFF
+
+typedef struct _wait_task {
+	wait_queue_t		*wq;			/* 挂入的waitqueue */
+	struct list_head	q;
+	wakeup_reason_e		wu_r;
+	u32					timeout;		/* tick num */
+} wait_task_t;
+
+#define TASKSTACK_RANK			BUDDY_RANK_8K
+#define TASKSTACK_SIZE			(PAGE_SIZE << TASKSTACK_RANK)
 
 typedef enum _task_state {
     STATE_RUNNING = 0,
@@ -16,21 +41,28 @@ typedef enum _task_state {
     STATE_EXIT
 } task_state_e;
 
+//
+#define		TASKFLAG_NEEDSCHED		(0x80000000)			/* need sched */
 #define		TASKFLAG_KT				(0x00000001)			/* Kernel thread */
 
 struct _task_stack;
 typedef struct _task {
+	const char *name;
 	task_state_e    state;
 	int     pid;
 	u32		tskflag;
 
+	/* task切换上下文 */
 	u32     ctx_ip, ctx_sp;
-
 	u32		pgd_pa;				/* task page directory phy addr */
 
-	struct list_head q;			/* link this task desc into q */
-
 	struct _task_stack *stack;
+
+	/* 调度相关 */
+	int		pri, pri_init;		/* 初始优先级 */
+	u32		slice, slice_init;
+	struct list_head q;			/* link this task desc into q */
+	wait_task_t		wait;		/* 链入wait_queue_t 当task挂起时用到 */
 } task_t;
 
 typedef struct _tss {
@@ -66,6 +98,7 @@ typedef struct _tss {
 
 asmlinkage task_t *__switch_to(task_t *prev, task_t *next);
 
+/* task运行栈空间 占据2页 */
 typedef struct _task_stack {
     task_t *task;
 } task_stack_t;
@@ -114,24 +147,32 @@ static inline task_stack_t *getcurstack(void)
 
 void schedule(void);
 void tail_sched(void);
-void exit(int exit_code);
 
-typedef asmlinkage int (*task_entry)(struct pt_regs *regs, void *param);
+/**/
+asmlinkage void exit(int exit_code);
+
+typedef int (*task_entry)(void *param);
 
 /* ring 0 thread */
-int kernel_thread(task_entry entry, void *param);
-int exec_test();
+int kernel_thread(task_entry entry, const char *name, void *param);
 
 void idleloop(void);
 
-void kt_after_switch(void);
+void thread_start(void);
 
+u32 is_taskinit_done();
 
-/* sleep
- * usec: micro second
- */
-void sleep(int usec);
 void wait_ms(u32 ms);			/* busy loop */
+
+void systick(void);
+
+int waitqueue_init(wait_queue_t *wq);
+
+/* 唤醒 */
+void wakeup_task(task_t *task, wakeup_reason_e wu_r);
+/* 阻塞 */
+wakeup_reason_e wait_task(task_t *task, wait_queue_t *wq, u32 timeout);
+
 
 extern volatile u32	smp_nap;
 

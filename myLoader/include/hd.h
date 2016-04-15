@@ -39,8 +39,7 @@ struct hd_info{
     u16     stop_cyl;
     u8      n_sect;         /* sect num */
     u8      rsv3;
-
-}__attribute__((packed));
+}__attribute__((packed));
 
 // extern struct hd_info hdinfo;
 

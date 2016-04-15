@@ -1,7 +1,6 @@
 #ifndef _MEMORY_H_
 #define _MEMORY_H_
-
-
+
 #include "public.h"
 #include "list.h"
 #include "section.h"
@@ -24,8 +23,7 @@ extern u16 raminfo_buf[RAMINFO_MAXLEN];
 extern u32 ram_size;    /* this is the whole RAM size, we get it by BIOS INT */
 
 enum BUDDY_RANK{
-    BUDDY_RANK_4K = 0,
-
+    BUDDY_RANK_4K = 0,
     BUDDY_RANK_8K,          /* 0x2000   */
     BUDDY_RANK_16K,         /* 0x4000   */
     BUDDY_RANK_32K,         /* 0x8000   */
@@ -116,9 +114,9 @@ typedef struct _pte{
 	u32		pg_base		: 20;
 } pte_t;
 
-/* æ¯é¡µå®¹çº³çš„é¡µè¡¨é¡¹æ•°é‡ */
+/* Ã¿Ò³ÈİÄÉµÄÒ³±íÏîÊıÁ¿ */
 #define N_PTEENTRY_PERPAGE				(PAGE_SIZE / sizeof(pte_t))
-/* normal memoryç©ºé—´å¯¹åº”çš„é¡µç›®å½•è¡¨é¡¹æ•°é‡ */
+/* normal memory¿Õ¼ä¶ÔÓ¦µÄÒ³Ä¿Â¼±íÏîÊıÁ¿ */
 #define NORMALMEM_N_PDEENTRY			(MM_NORMALMEM_RANGE / PAGE_SIZE / N_PTEENTRY_PERPAGE)
 
 /* get CR0 */
@@ -212,14 +210,6 @@ void mem_init(void);
 int mmap(u32 va, u32 pa, u32 len, u32 usermode);
 int mmap1page(u32 va, u32 pa, u32 usermode);
 
-asmlinkage void do_pagefault(struct pt_regs *regs, u32 error_code);
-asmlinkage void do_nmifault(struct pt_regs *regs, u32 error_code);
-asmlinkage void do_dffault(struct pt_regs *regs, u32 error_code);
-asmlinkage void do_tssfault(struct pt_regs *regs, u32 error_code);
-asmlinkage void do_npfault(struct pt_regs *regs, u32 error_code);
-asmlinkage void do_ssfault(struct pt_regs *regs, u32 error_code);
-asmlinkage void do_gpfault(struct pt_regs *regs, u32 error_code);
-
 enum {
 	MMAREA_LOW1M = 0,
 	MMAREA_NORMAL,
@@ -299,7 +289,7 @@ typedef struct _memcache {
 	u32					bps;					/* number of blocks per slab */
 	u32					n_blk;					/* number of all blocks in this cache */
 
-	struct list_head	cachelist;				/* ç”¨äºä¸²èµ·æ‰€æœ‰çš„memcache, å¤´éƒ¨æ˜¯cache_cacheä¸­çš„è¿™ä¸ªåŸŸ */
+	struct list_head	cachelist;				/* ÓÃÓÚ´®ÆğËùÓĞµÄmemcache, Í·²¿ÊÇcache_cacheÖĞµÄÕâ¸öÓò */
 } memcache_t;
 
 int slab_init(void);

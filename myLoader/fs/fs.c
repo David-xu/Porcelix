@@ -36,23 +36,23 @@ static void cmd_ls_opfunc(char *argv[], int argc, void *param)
         dentry_t *dentry = stat_dentry->dentry_array + idx;
         u32 attrib = dentry->inode.i_mode;
         if (S_ISDIR(attrib))
-            printf("d");
+            printk("d");
         else
-            printf("-");
+            printk("-");
         /* user attribute */
-        printf("%s", file_attrib[(S_IRWXU & attrib) >> 6]);
+        printk("%s", file_attrib[(S_IRWXU & attrib) >> 6]);
         /* grp attribute */
-        printf("%s", file_attrib[(S_IRWXG & attrib) >> 3]);
+        printk("%s", file_attrib[(S_IRWXG & attrib) >> 3]);
         /* oth attribute */
-        printf("%s\t\t", file_attrib[(S_IRWXO & attrib) >> 0]);
+        printk("%s\t\t", file_attrib[(S_IRWXO & attrib) >> 0]);
 
         /* uid gid size */
-        printf("%d\t%d%10d\t", dentry->inode.i_uid,
+        printk("%d\t%d%10d\t", dentry->inode.i_uid,
                                  dentry->inode.i_gid,
                                  dentry->inode.i_size);
 
         /* name */
-        printf("%s\n", dentry->name);
+        printk("%s\n", dentry->name);
     }
 
     page_free(stat_dentry);
@@ -74,7 +74,7 @@ static void cmd_cd_opfunc(char *argv[], int argc, void *param)
     
     if (cursel_partition->fs->fs_changecurdir(cursel_partition->fs, cursel_partition, argv[1]))
     {
-        printf("No such directory.\n");
+        printk("No such directory.\n");
     }
 }
 
@@ -180,6 +180,7 @@ int fs_readfile(struct partition_desc *part, char *name, void *buf)
 /* boot the kernel
  * argv[1]: dest kernel filename
  */
+
 static void cmd_boot_opfunc(char *argv[], int argc, void *param)
 {
 	/* now we just support the file under current path */
@@ -196,10 +197,10 @@ static void cmd_boot_opfunc(char *argv[], int argc, void *param)
 	int filesize = fs_readfile(cursel_partition, argv[1], bootmem);
 	if (filesize < 0)
 	{
-		printf("Boot kernel file not found.\n");
+		printk("Boot kernel file not found.\n");
 		return;
 	}
-	printf("file %s loaded at 0x%#8x, total %d bytes.\n", argv[1], (u32)bootmem, filesize);
+	printk("file %s loaded at 0x%#8x, total %d bytes.\n", argv[1], (u32)bootmem, filesize);
 #if 0
 	/* stat current path, we want to find the file */
     struct page *dentry_bufpage = cursel_partition->fs->fs_stat(cursel_partition->fs, cursel_partition);
@@ -223,7 +224,7 @@ static void cmd_boot_opfunc(char *argv[], int argc, void *param)
 
 	if (idx == stat_dentry->n_dentry)
 	{
-		printf("Boot kernel file not found.\n");
+		printk("Boot kernel file not found.\n");
 		return;
 	}
 
@@ -244,7 +245,7 @@ static void cmd_boot_opfunc(char *argv[], int argc, void *param)
 	 * kernel ---> 1M
 	 */
 
-	printf("setup sector number: %d\n", boothead->setup_sects);
+	printk("setup sector number: %d\n", boothead->setup_sects);
 
 	memcpy((void *)0x70000, bootmem, (boothead->setup_sects + 1) * 512);
 
@@ -253,7 +254,7 @@ static void cmd_boot_opfunc(char *argv[], int argc, void *param)
 		   (void *)((u32)bootmem + (boothead->setup_sects + 1) * 512),
 		   inode.i_size - (boothead->setup_sects + 1) * 512);
 */
-	printf("filesize - (boothead->setup_sects + 1) * 512: %d\n"
+	printk("filesize - (boothead->setup_sects + 1) * 512: %d\n"
 		   "restore the IDTR ---> 0x%#2x 0x%#2x 0x%#2x 0x%#2x 0x%#2x 0x%#2x\n"
 		   "myLoader exit...\n",
 		   filesize - (boothead->setup_sects + 1) * 512,
@@ -269,7 +270,7 @@ static void cmd_boot_opfunc(char *argv[], int argc, void *param)
 	/* kernel core load addr */
 	boothead->code32_start = (u32)bootmem + (boothead->setup_sects + 1) * 512;
 
-	boothead->vid_mode = 0xFFFF;
+	boothead->vid_mode = NORMAL_VGA;	// NORMAL_VGA EXTENDED_VGA ASK_VGA
 	boothead->type_of_loader = 0xFF;
 	boothead->loadflags |= LOADED_HIGH | CAN_USE_HEAP;
 	boothead->heap_end_ptr = boothead->cmd_line_ptr - 0x200;
@@ -313,9 +314,7 @@ static void __init fs_init(void)
     struct file_system *fs;
     unsigned i;
     n_supportfs = (GET_SYMBOLVALUE(fsdesc_array_end) - (unsigned)fsdesc_array) / sizeof(struct file_system);
-    DEBUG(
-
-"n_supportfs: %d\n", n_supportfs);
+    DEBUG("n_supportfs: %d\n", n_supportfs);
     /* install all fs */
     for (i = 0; i < n_supportfs; i++)
     {

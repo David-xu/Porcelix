@@ -11,13 +11,14 @@
 #include "module.h"
 #include "net.h"
 #include "task.h"
+#include "userbin.h"
 
 unsigned n_command = 0;
 
 
 static void cmd_dispcpu_opfunc(char *argv[], int argc, void *param)
 {
-	u32 cur_cs, cur_ds, cur_es, cur_ss, cur_esp;
+	u32 cur_cs, cur_ds, cur_es, cur_ss, cur_esp, cur_ebp;
 	__asm__ __volatile__ (
 		"movl	%%cs, %%eax			\n\t"
 		"movl	%%eax, %0			\n\t"
@@ -31,18 +32,21 @@ static void cmd_dispcpu_opfunc(char *argv[], int argc, void *param)
 		"movl	%%eax, %3			\n\t"
 
 		"movl	%%esp, %4			\n\t"
+		"movl	%%ebp, %5			\n\t"
 		:"=m"(cur_cs), "=m"(cur_ds), "=m"(cur_es), 
-		 "=m"(cur_ss), "=m"(cur_esp)
+		 "=m"(cur_ss), "=m"(cur_esp), "=m"(cur_ebp)
 		:
 		:"%eax"
 	);
 
-	printf("current regs:\n"
+	printk("current regs:\n"
 		   "cs: 0x%#4x, ds: 0x%#4x, es: 0x%#4x, ss: 0x%#4x\n"
-		   "esp: 0x%#8x\n"
+		   "esp: 0x%#8x, ebp: 0x%#8x\n"
+		   "eflags: 0x%#8x\n"
 		   "CR0: 0x%#8x, CR3: 0x%#8x\n",
 		   cur_cs, cur_ds, cur_es, cur_ss,
-		   cur_esp,
+		   cur_esp, cur_ebp,
+		   native_save_fl(),
 		   getCR0(), getCR3());
 }
 
@@ -53,10 +57,20 @@ struct command cmd_dispcpu _SECTION_(.array.cmd) =
     .op_func    = cmd_dispcpu_opfunc,
 };
 
-asmlinkage int testtask(struct pt_regs *regs, void *param)
+/* 启动用户态线程例子 */
+static int exec_test()
+{	struct pt_regs *regs = (struct pt_regs *)((u32)(current->stack) + TASKSTACK_SIZE) - 1;	void *usermode_space = page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);	regs->eip = 0x80000000;	regs->xcs = USRDESC_CODE | 0x3;	regs->eflags = EFLAGSMASK_IF | EFLAGSMASK_IOPL;	regs->esp = 0x80000000 + 0x2000;	regs->xss = USRDESC_DATA | 0x3;	regs->xds = USRDESC_DATA | 0x3;	regs->xes = USRDESC_DATA | 0x3;	regs->xfs = USRDESC_DATA | 0x3;	mmap(0x80000000, (u32)usermode_space, 0x2000, 1);	memcpy(usermode_space, (void *)user_bin, userbin_len);	return 0;}
+
+int testtask(void *param)
 {
-	printf("testtask()  0x%#8x\n", (u32)param);
+	printk("testtask()  0x%#8x\n", (u32)param);
 	exec_test();
+	return 0;
+}
+
+int testexit(void *param)
+{
+	printk("testexit() do nothing.  0x%#8x\n", (u32)param);
 	return 0;
 }
 
@@ -65,25 +79,17 @@ static void cmd_test_opfunc(char *argv[], int argc, void *param)
 #if 0
 	u32 base;
 	char *name = allsym_resolvaddr(str2num(argv[1]), &base);
-	printf("addr: 0x%#8x --> %s base 0x%#8x\n", str2num(argv[1]), name, base);
+	printk("addr: 0x%#8x --> %s base 0x%#8x\n", str2num(argv[1]), name, base);
 
-	kernel_thread(testtask, (void *)0x12345678);
+	kernel_thread(testtask, "testtask", (void *)0x12345678);
 #else
-	u32 *p;
-	memcache_t *testcache1 = memcache_create(16, 0, "testcache");
-	memcache_t *testcache2 = memcache_create(44, 1, "testcache");
-	u32 i = 0x80000;
-	while (i--)
-	{
-		p = (u32 *)memcache_alloc(testcache1);
-		*p = i * 0x3;
-		p = (u32 *)memcache_alloc(testcache2);
-		*p = i * 0x6;
-	}
-	dump_freepage();
-	
-	memcache_destroy(testcache1);
-	memcache_destroy(testcache2);
+	u16 tmp;
+	outb(0x0c, 0x3d4);
+	tmp = inb(0x3d5);
+	tmp <<= 8;
+	outb(0x0d, 0x3d4);
+	tmp |= inb(0x3d5);
+	printk("%#4x.\n", tmp);
 #endif
 }
 
@@ -103,7 +109,7 @@ static void cmd_help_opfunc(char *argv[], int argc, void *param)
     {
         for (i = 0; i < n_command; i++, cmd++)
         {
-            printf("%s\t%s\n", cmd->cmd_name, cmd->info);
+            printk("%s\t%s\n", cmd->cmd_name, cmd->info);
         }
     }
 }
@@ -143,7 +149,7 @@ static void cmd_parse_impl(char *cmd)
         }
     }
 
-    printf("Known. Please input \'help\' to get help.\n");
+    printk("Known. Please input \'help\' to get help.\n");
 }
 
 static char* cmd_get_title(void)
@@ -164,24 +170,19 @@ static char* cmd_get_title(void)
     return title;
 }
 
-asmlinkage int cmd_loop(struct pt_regs *regs, void *param)
+int cmd_loop(void *param)
 {
     int i, getch = 0;
     u16 pos = 0;
     char cmdBuff[256] = {0};
-    
+
     while(1)
     {
-        printf("%s", cmd_get_title());
+        printk("%s", cmd_get_title());
         while (getch != '\n')
         {
+        	/* task may block */
             getch = kbd_get_char();
-            if (getch == -1)
-            {
-                /* there is no kbd input */
-                schedule();
-                continue;
-            }
 
             // backspace
             if (getch == '\b')
@@ -190,7 +191,7 @@ asmlinkage int cmd_loop(struct pt_regs *regs, void *param)
                 {
                     cmdBuff[pos] = 0;
                     pos--;
-                    printf("%c", '\b');
+                    printk("%c", '\b');
                 }
                 continue;
             }
@@ -211,7 +212,7 @@ asmlinkage int cmd_loop(struct pt_regs *regs, void *param)
                     {
                         // cp the left cmdname
                         memcpy(&cmdBuff[pos], &(cmd_name[pos]), cmdlen - pos);
-                        printf("%s ", &(cmd_name[pos]));
+                        printk("%s ", &(cmd_name[pos]));
                         pos = cmdlen;
                         cmdBuff[pos] = ' ';
                         pos++;
@@ -222,7 +223,7 @@ asmlinkage int cmd_loop(struct pt_regs *regs, void *param)
             }
             
             cmdBuff[pos++] = getch;
-            printf("%c", getch);
+            printk("%c", getch);
         }
         
         /* parse and process the cmd */
@@ -243,7 +244,7 @@ static void __init cmdlist_init(void)
     n_command = (GET_SYMBOLVALUE(cmddesc_array_end) - GET_SYMBOLVALUE(cmddesc_array)) / sizeof(struct command);
 
     /* this is the command loop thread */
-    kernel_thread(cmd_loop, NULL);
+    kernel_thread(cmd_loop, "cmdline", NULL);
 }
 
 module_init(cmdlist_init, 7);

@@ -213,11 +213,24 @@ void die(void)
 		:
 	);
 
-	dump_stack(ebp);
+	if (is_taskinit_done())
+		dump_stack(ebp);
 
-	printf("Dead...");
+	printk("Dead...");
 	while (1);
 }
+
+/*
+ * -DMLD_DATE=\"$(shell date +%Y%m%d-%H%M%S)\"
+ */
+const char *get_date_string(void)
+{
+	const char *date = MLD_DATE;
+
+	return date;
+}
+
+
 
 /*
  * this 'sort' function was copied from linux kernel

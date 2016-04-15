@@ -8,6 +8,7 @@
 #include "list.h"
 #include "memory.h"
 #include "module.h"
+#include "debug.h"
 
 static struct list_head int_pubent_list[16];
 static u8 pubent_init[16] = {0};
@@ -76,7 +77,7 @@ static inline void sendeoi_slaver(void)
 
 asmlinkage void intprocjmp_master(struct pt_regs *regs, u32 irq)
 {
-    interrupt_proc_t *int_proc;
+    int_proc_t *int_proc;
 
 	ASSERT((irq >= 0) && (irq < 7));
 
@@ -91,7 +92,7 @@ asmlinkage void intprocjmp_master(struct pt_regs *regs, u32 irq)
 
 asmlinkage void intprocjmp_slaver(struct pt_regs *regs, u32 irq)
 {
-    interrupt_proc_t *int_proc;
+    int_proc_t *int_proc;
 
 	ASSERT((irq >= 8) && (irq < 16));
 	
@@ -143,12 +144,12 @@ void _SECTION_(.init.text) interrupt_init()
 
 int interrup_register(int irq, intproc_ent intf, void *param)
 {
-    interrupt_proc_t *int_proc;
+    int_proc_t *int_proc;
     u8 intmask;
 
 	if (intproc_cache == NULL)
 	{
-		intproc_cache = memcache_create(sizeof(interrupt_proc_t), BUDDY_RANK_4K, "interrupt_proc_t");
+		intproc_cache = memcache_create(sizeof(int_proc_t), BUDDY_RANK_4K, "int_proc_t");
 		ASSERT(intproc_cache != NULL);
 	}
 
@@ -176,7 +177,8 @@ int interrup_register(int irq, intproc_ent intf, void *param)
         set_intgate(X86_VECTOR_IRQ_20 + irq, intprocarray[irq]);
 
         pubent_init[irq] = 1;
-        printf("int %d register new proc success.\n", irq);
+
+        DEBUG("int %d register new proc success.\n", irq);
 
         _sti();
     }
@@ -188,8 +190,9 @@ int interrup_register(int irq, intproc_ent intf, void *param)
             return -2;
         }
     }
-    /* alloc one interrupt_proc_t */
-	int_proc = (interrupt_proc_t *)memcache_alloc(intproc_cache);
+    /* alloc one int_proc_t */
+
+	int_proc = (int_proc_t *)memcache_alloc(intproc_cache);
 
     int_proc->intf = intf;
     int_proc->param = param;

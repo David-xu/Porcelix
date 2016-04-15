@@ -16,7 +16,7 @@
 #if CONFIG_FSDEBUG_DUMP
 static void ext2_dump_inode(struct ext2_inode *ext2_inode)
 {
-    printf("Ext2 fs inode:\n"
+    printk("Ext2 fs inode:\n"
            "inode mode          : 0x%#4x\n"
            "uid                 : %d\n"
            "gid                 : %d\n"
@@ -32,7 +32,7 @@ static void ext2_dump_inode(struct ext2_inode *ext2_inode)
 
 static void ext2_dump_sb(struct ext2_superblock *ext2_sb)
 {
-    printf("Ext2 fs superblock info:\n"
+    printk("Ext2 fs superblock info:\n"
            "Total blocks        : 0x%#8x\n"
            "Blocks per blockgrp : 0x%#8x\n"
            "First_data_block    : 0x%#8x\n"
@@ -50,7 +50,7 @@ static void ext2_dump_grpdesc(struct ext2_group_desc *ext2_grpdesc, u32 n_grp)
     u32 count;
     for (count = 0; count < n_grp; count++)
     {
-        printf("grp %d:\n"
+        printk("grp %d:\n"
                "bg_block_bitmap   : 0x%#8x\n"
                "bg_block_bitmap   : 0x%#8x\n"
                "bg_inode_table    : 0x%#8x\n"
@@ -62,13 +62,13 @@ static void ext2_dump_grpdesc(struct ext2_group_desc *ext2_grpdesc, u32 n_grp)
                ext2_grpdesc[count].bg_inode_table,
                ext2_grpdesc[count].bg_free_blocks_count,
                ext2_grpdesc[count].bg_free_inodes_count);
-        while (-1 == kbd_get_char());
+        // while (-1 == kbd_get_char());
     }
 }
 
 static void ext2_dump_info(struct ext2_info *info)
 {
-    printf("Ext2fs info:\n"
+    printk("Ext2fs info:\n"
            "sb_addr           : 0x%#8x\n"
            "grp_desc_addr     : 0x%#8x\n"
            "fsblock_buff_addr1: 0x%#8x\n"
@@ -116,14 +116,14 @@ static int ext2_load_sb(struct file_system *fs, void *param)
     /* check the magic num, make sure this is the ext2 filesystem. */
     if (info->sb->s_magic != EXT2_MAGICNUM)
     {
-        printf("ext2 super_block broken, invalid magic.\n");
+        printk("ext2 super_block broken, invalid magic.\n");
         page_free(fsparam);     /* free fsparam page */
         return -1;
     }
     /* check the inode size */
     if (info->sb->s_inode_size != sizeof(struct ext2_inode))
     {
-        printf("ext2 super_block broken, invalid inodesize.\n");
+        printk("ext2 super_block broken, invalid inodesize.\n");
         page_free(fsparam);     /* free fsparam page */
         return -1;
     }    
@@ -216,7 +216,7 @@ static int ext2_get_inode(struct file_system *fs, void *param, inode_t *inode, u
 static int ext2_register(struct file_system *fs, void *param)
 {
     ASSERT(sizeof(struct ext2_superblock) == (0x1 << 10));
-    printf("\"%s\" has been registed.\n", fs->name);
+    DEBUG("\"%s\" has been registed.\n", fs->name);
     return 0;
 }
 

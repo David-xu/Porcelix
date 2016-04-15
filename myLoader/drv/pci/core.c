@@ -21,7 +21,7 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
     if ((argc == 1) ||
         ((argc == 2) && (memcmp("-a", argv[1], sizeof("-a")) == 0)))
     {
-        printf("PCI bus enumeration begin...\n");
+        printk("PCI bus enumeration begin...\n");
         
         for (bus = 0; bus < PCI_BUS_COUNT; bus++)
             for (dev = 0; dev < PCI_DEV_COUNT; dev++)
@@ -34,7 +34,7 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
                     
                     if (pcicfg.u.cfg.vendor != PCI_INVALID_VENDORID)
                     {
-                        printf("bus:%2d dev:%2x func:%x ---> Vendor ID:%4x, Device ID:%4x.\n",
+                        printk("bus:%2d dev:%2x func:%x ---> Vendor ID:%4x, Device ID:%4x.\n",
                                bus, dev, func,
                                pcicfg.u.cfg.vendor, pcicfg.u.cfg.device);
                     }
@@ -52,7 +52,7 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
             
                 if (pcicfg.u.cfg.vendor != PCI_INVALID_VENDORID)
                 {
-                    printf("bus:%2d dev:%2x func:%x ---> Vendor ID:%4x, Device ID:%4x.\n",
+                    printk("bus:%2d dev:%2x func:%x ---> Vendor ID:%4x, Device ID:%4x.\n",
                            bus, dev, func,
                            pcicfg.u.cfg.vendor, pcicfg.u.cfg.device);
                     count++;
@@ -60,7 +60,7 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
             }
         if (count == 0)
         {
-            printf("No PCI devices on bus:%d.\n", bus);
+            printk("No PCI devices on bus:%d.\n", bus);
         }
     }
     else if ((argc == 5) &&
@@ -74,11 +74,11 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
         
         if ((pcicfg.u.cfg.vendor) == PCI_INVALID_VENDORID)
         {
-            printf("Device (%d) with func (%d) on bus (%d) dosn't exist.\n", dev, func, bus);
+            printk("Device (%d) with func (%d) on bus (%d) dosn't exist.\n", dev, func, bus);
             return;
         }
 
-        printf("Device (%d) with func (%d) on bus(%d):\n", dev, func, bus);
+        printk("Device (%d) with func (%d) on bus(%d):\n", dev, func, bus);
         pci_dispcfgdata(&pcicfg);
     }
 }
@@ -95,7 +95,7 @@ struct command cmd_dispcidev _SECTION_(.array.cmd) =
 void pci_dispcfgdata(pcicfgdata_t *pcicfg)
 {
     unsigned i = 0;
-    printf("   Vendor: 0x%#4x,  Device: 0x%#4x,     SubVer: 0x%#4x,  SubDev: 0x%#4x\n"
+    printk("   Vendor: 0x%#4x,  Device: 0x%#4x,     SubVer: 0x%#4x,  SubDev: 0x%#4x\n"
            "    class: 0x%#2x,  subclass: 0x%#2x,         prog: 0x%#2x, sRevision: 0x%#2x\n"
            "     BIST: 0x%#2x,HeaderType: 0x%#2x, LatencyTimer: 0x%#2x, CacheLineSize: 0x%#2x\n"
            "   MaxLat: 0x%#2x,    MinGnt: 0x%#2x,       IntPin: 0x%#2x,       IntLine: 0x%#2x\n",
@@ -105,7 +105,7 @@ void pci_dispcfgdata(pcicfgdata_t *pcicfg)
            pcicfg->u.cfg.maxlat, pcicfg->u.cfg.mingnt, pcicfg->u.cfg.intpin, pcicfg->u.cfg.intline);
     for (i = 0; i < ARRAY_ELEMENT_SIZE(pcicfg->u.cfg.baseaddr); i++)
     {
-        printf("BAR(%d):0x%#8x    BAR(%d)mask:0x%#8x\n",
+        printk("BAR(%d):0x%#8x    BAR(%d)mask:0x%#8x\n",
                i, pcicfg->u.cfg.baseaddr[i], i, pcicfg->bar_mask[i]);
     }
 }
@@ -249,7 +249,7 @@ findoneproperdrv:
                 pcinewdev->pcidrv = pcidrv;
                 if (pcidev_register(pcinewdev) == 0)
                 {
-                    printf("pci device %#4x:%#4x register success, driver name:%s\n",
+                    printk("pci device %#4x:%#4x register success, driver name:%s\n",
                            pcinewdev->pcicfg.u.cfg.vendor, pcinewdev->pcicfg.u.cfg.device,
                            pcinewdev->pcidrv->drvname);
                 }

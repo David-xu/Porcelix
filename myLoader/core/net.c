@@ -41,7 +41,7 @@ int arp_insert(u8 *ipaddr, u8 *macaddr)
 
     if (arpcache.count == arpcache.listsize)
     {
-        printf("arp catch insert failed.\n");
+        printk("arp catch insert failed.\n");
         return -1;
     }
 
@@ -50,8 +50,7 @@ int arp_insert(u8 *ipaddr, u8 *macaddr)
     {
         if (arpcache.list[count].valid == 0)
         {
-            arpcache.list[count].valid = 1;
-
+            arpcache.list[count].valid = 1;
             memcpy(arpcache.list[count].ip, ipaddr, 4);
             memcpy(arpcache.list[count].mac, macaddr, 6);
             return 0;
@@ -118,7 +117,7 @@ u16 checksum(u32 cksum, void *pBuffer, u16 len)
 
 void ipv4header_dump(ipv4_header_t *ipv4header)
 {
-    printf("ver:0x%1x, ihl:0x%1x, tos:0x%2x, total_len:%d\n"
+    printk("ver:0x%1x, ihl:0x%1x, tos:0x%2x, total_len:%d\n"
            " id:0x%4x, flag:0x%1x, flag_off:0x%4x\n"
            "ttl:0x%2x, prot:0x%2x, checksum:0x%4x\n"
            "src ip: %d.%d.%d.%d "
@@ -146,7 +145,7 @@ u16 getipv4totallen(ipv4_header_t *ipv4header)
 
 void udpheader_dump(udp_header_t *udpheader)
 {
-    printf("srcport:%d  dstport:%d  len:%d\n",
+    printk("srcport:%d  dstport:%d  len:%d\n",
            getudp_srcport(udpheader),
            getudp_dstport(udpheader),
            getudp_len(udpheader));
@@ -257,7 +256,7 @@ static void efproc(ethframe_t *ef)
         l4len = getipv4totallen(ipv4header) - l3headerlen;
         if (0 != checksum(0, ipv4header, l3headerlen))
         {
-        	printf("ipv4 checksum err.\n");
+        	printk("ipv4 checksum err.\n");
             return;
         }
 
@@ -326,7 +325,7 @@ static void efproc(ethframe_t *ef)
         }
         default:
             /* the protocol we don't support */
-			printf("IPv4 unknow protocol:0x%#4x\n", ipv4header->protocol);
+			printk("IPv4 unknow protocol:0x%#4x\n", ipv4header->protocol);
 			dump_ram(ef->buf, ef->len);
             break;
         }
@@ -339,7 +338,7 @@ static void efproc(ethframe_t *ef)
 }
 
 /* pending frame procedure, process all of the rx ethframe */
-asmlinkage int do_fbproc(struct pt_regs *regs, void *param)
+int do_fbproc(void *param)
 {
     ethframe_t *ef;
     struct list_head *first_ef;
@@ -348,11 +347,9 @@ asmlinkage int do_fbproc(struct pt_regs *regs, void *param)
     {
         if (CHECK_LIST_EMPTY(&rxef_list))
         {
-            sleep(100);
-            schedule();
             continue;
         }
- 
+
         /* kick out and process the each ef */
         u32 flags;
         raw_local_irq_save(flags);
@@ -460,7 +457,7 @@ int udp_send(sock_context_t *sockctx, void *buff, u16 len)
     ethii_header_t *ethiiheader = (ethii_header_t *)((u32)ipheader - sizeof(ethii_header_t));
     if (arp_getmacaddr(sockctx->destip, ethiiheader->dstaddr) < 0)
     {
-        printf("udp_send() failed, get arp_catch failed, dst ip:%d.%d.%d.%d.",
+        printk("udp_send() failed, get arp_catch failed, dst ip:%d.%d.%d.%d.",
                sockctx->destip[0],
                sockctx->destip[1],
                sockctx->destip[2],
@@ -468,8 +465,7 @@ int udp_send(sock_context_t *sockctx, void *buff, u16 len)
         return -1;
     }
     memcpy(ethiiheader->srcaddr, sockctx->netdev->macaddr, 6);
-    ethiiheader->ethtype = SWAP_2B(L2TYPE_IPV4);
-
+    ethiiheader->ethtype = SWAP_2B(L2TYPE_IPV4);
 
     /* send the pkt */
     sockctx->netdev->tx(sockctx->netdev, ethiiheader, len);
@@ -497,7 +493,7 @@ static void __init netproc_init(void)
     ipmask[3] = 0;
 
     /* this the ethframe proc task */
-	kernel_thread(do_fbproc, NULL);
+	kernel_thread(do_fbproc, "net_proc", NULL);
 }
 
 module_init(netproc_init, 3);

@@ -3,7 +3,7 @@ CFLAGS = -Wall -O2
 client = pc_client
 
 src := client.c			\
-	$(CURDIR)/../crc32/crc32.c
+	$(CURDIR)/../lib/crc32/crc32.c
 obj := $(src:.c=.o)
 
 CFLAGS = -Wall -O2 -I$(CURDIR)/../ -I$(CURDIR)/../include

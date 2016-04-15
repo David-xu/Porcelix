@@ -10,10 +10,10 @@ typedef unsigned	Elf32_Off;
 typedef int	Elf32_Sword;
 typedef unsigned	Elf32_Word;
 
-/* å¤´4å­—èŠ‚æ˜¯ 0x7f 'E' 'L' 'F' */
+/* Í·4×Ö½ÚÊÇ 0x7f 'E' 'L' 'F' */
 #define EI_NIDENT	16
 
-/* elf32 æ–‡ä»¶å¤´ */
+/* elf32 ÎÄ¼þÍ· */
 typedef struct elf32_hdr{
   unsigned char	e_ident[EI_NIDENT];
   Elf32_Half	e_type;         /* ET_XXX */
@@ -23,11 +23,11 @@ typedef struct elf32_hdr{
   Elf32_Off		e_phoff;		/* program headers offset */
   Elf32_Off		e_shoff;		/* section headers offset */
   Elf32_Word	e_flags;
-  Elf32_Half	e_ehsize;		/* æœ¬èº«çš„é•¿åº¦ */
-  Elf32_Half	e_phentsize;	/* Elf32_Phdræè¿°ç¬¦ç»“æž„ä½“é•¿åº¦ */
-  Elf32_Half	e_phnum;		/* Elf32_Phdrä¸ªæ•° */
-  Elf32_Half	e_shentsize;	/* Elf32_Shdræè¿°ç¬¦ç»“æž„ä½“é•¿åº¦ */
-  Elf32_Half	e_shnum;		/* Elf32_Shdrä¸ªæ•° */
+  Elf32_Half	e_ehsize;		/* ±¾ÉíµÄ³¤¶È */
+  Elf32_Half	e_phentsize;	/* Elf32_PhdrÃèÊö·û½á¹¹Ìå³¤¶È */
+  Elf32_Half	e_phnum;		/* Elf32_Phdr¸öÊý */
+  Elf32_Half	e_shentsize;	/* Elf32_ShdrÃèÊö·û½á¹¹Ìå³¤¶È */
+  Elf32_Half	e_shnum;		/* Elf32_Shdr¸öÊý */
   Elf32_Half	e_shstrndx;
 } Elf32_Ehdr;
 
@@ -40,8 +40,8 @@ typedef struct elf32_hdr{
 #define ET_LOPROC 0xff00
 #define ET_HIPROC 0xffff
 
-/* program header æè¿°ç¬¦ */
-/* ç”¨æ¥åŠ è½½åˆ°å†…å­˜çš„ é€šå¸¸å¯æ‰§è¡Œçš„elfä¼šæœ‰program header */
+/* program header ÃèÊö·û */
+/* ÓÃÀ´¼ÓÔØµ½ÄÚ´æµÄ Í¨³£¿ÉÖ´ÐÐµÄelf»áÓÐprogram header */
 typedef struct elf32_phdr{
   Elf32_Word	p_type;         /* PT_XXX */
   Elf32_Off	p_offset;
@@ -70,18 +70,18 @@ typedef struct elf32_phdr{
 
 #define PT_GNU_STACK	(PT_LOOS + 0x474e551)
 
-/* section header æè¿°ç¬¦ */
+/* section header ÃèÊö·û */
 typedef struct elf32_shdr {
   Elf32_Word	sh_name;
   Elf32_Word	sh_type;            /* SHT_XXX */
   Elf32_Word	sh_flags;           /* SHF_XXX */
-  Elf32_Addr	sh_addr;            /* å¦‚æžœsectionè¦æ˜ å°„åˆ°ä¸»å­˜ä¸­ åˆ™è¯¥å€¼åæ˜ æœ¬sectionåœ¨ä¸»å­˜æ˜ å°„çš„ä½ç½® */
-  Elf32_Off		sh_offset;			/* æœ¬sectionåœ¨æ–‡ä»¶ä¸­çš„åç§» */
+  Elf32_Addr	sh_addr;            /* Èç¹ûsectionÒªÓ³Éäµ½Ö÷´æÖÐ Ôò¸ÃÖµ·´Ó³±¾sectionÔÚÖ÷´æÓ³ÉäµÄÎ»ÖÃ */
+  Elf32_Off		sh_offset;			/* ±¾sectionÔÚÎÄ¼þÖÐµÄÆ«ÒÆ */
   Elf32_Word	sh_size;
-  Elf32_Word	sh_link;			/* æ ¹æ®ä¸åŒçš„sectionè€Œä¸åŒ, ä¾‹å¦‚å½“sectionæ˜¯ç¬¦å·è¡¨çš„æ—¶å€™ï¼Œé‚£ä¹ˆlinkå°±æ˜¯ç¬¦å·è¡¨å„ä¸ªç¬¦å·åæ‰€åœ¨çš„strtbl */
+  Elf32_Word	sh_link;			/* ¸ù¾Ý²»Í¬µÄsection¶ø²»Í¬, ÀýÈçµ±sectionÊÇ·ûºÅ±íµÄÊ±ºò£¬ÄÇÃ´link¾ÍÊÇ·ûºÅ±í¸÷¸ö·ûºÅÃûËùÔÚµÄstrtbl */
   Elf32_Word	sh_info;
   Elf32_Word	sh_addralign;
-  Elf32_Word	sh_entsize;         /* åƒSHT_SYMTABè¿™æ ·çš„section åˆ™è¯¥åŸŸä»£è¡¨æ¯ä¸ªentryçš„å¤§å° å¦‚æžœsectionä¸æ˜¯å›ºå®šå¤§å°çš„entryè¡¨ é‚£è¯¥åŸŸä¸º0 */
+  Elf32_Word	sh_entsize;         /* ÏñSHT_SYMTABÕâÑùµÄsection Ôò¸ÃÓò´ú±íÃ¿¸öentryµÄ´óÐ¡ Èç¹ûsection²»ÊÇ¹Ì¶¨´óÐ¡µÄentry±í ÄÇ¸ÃÓòÎª0 */
 } Elf32_Shdr;
 
 /* sh_type */
@@ -89,14 +89,14 @@ typedef struct elf32_shdr {
 #define SHT_PROGBITS	1
 #define SHT_SYMTAB	2
 #define SHT_STRTAB	3
-#define SHT_RELA	4               /* ç›¸å¯¹äºŽSHT_RELè€Œè¨€ æ˜¯æœ‰æ˜¾ç¤ºçš„addendsçš„ é‡å®šå‘è¡¨é¡¹çš„æœºæž„å¤šå‡ºä¸€é¡¹ */
+#define SHT_RELA	4               /* Ïà¶ÔÓÚSHT_REL¶øÑÔ ÊÇÓÐÏÔÊ¾µÄaddendsµÄ ÖØ¶¨Ïò±íÏîµÄ»ú¹¹¶à³öÒ»Ïî */
 #define SHT_HASH	5
-#define SHT_DYNAMIC	6               /* åŠ¨æ€é“¾æŽ¥çš„ä¿¡æ¯ */
+#define SHT_DYNAMIC	6               /* ¶¯Ì¬Á´½ÓµÄÐÅÏ¢ */
 #define SHT_NOTE	7
 #define SHT_NOBITS	8
-#define SHT_REL		9               /* sh_link:åšé‡å®šå‘ç”¨åˆ°çš„ç¬¦å·è¡¨ sh_info:é‡å®šå‘æ“ä½œé’ˆå¯¹çš„section */
+#define SHT_REL		9               /* sh_link:×öÖØ¶¨ÏòÓÃµ½µÄ·ûºÅ±í sh_info:ÖØ¶¨Ïò²Ù×÷Õë¶ÔµÄsection */
 #define SHT_SHLIB	10              /* This section type is reserved but has unspecified semantics. */
-#define SHT_DYNSYM	11              /* æ¯é¡¹å’ŒSHT_SYMTABä¸€æ · ç”¨äºŽåŠ¨æ€é“¾æŽ¥ */
+#define SHT_DYNSYM	11              /* Ã¿ÏîºÍSHT_SYMTABÒ»Ñù ÓÃÓÚ¶¯Ì¬Á´½Ó */
 #define SHT_NUM		12
 #define SHT_LOPROC	0x70000000
 #define SHT_HIPROC	0x7fffffff
@@ -104,13 +104,13 @@ typedef struct elf32_shdr {
 #define SHT_HIUSER	0xffffffff
 
 /* sh_flags */
-#define SHF_WRITE	0x1				/* ç”¨äºŽæŒ‡ç¤ºsectionåœ¨æ‰§è¡Œè¿‡ç¨‹ä¸­çš„åœ°å€ç©ºé—´å¿…é¡»å…·æœ‰å†™æƒé™ */
-#define SHF_ALLOC	0x2				/* ç”¨äºŽæŒ‡ç¤ºsectionåœ¨æ‰§è¡Œè¿‡ç¨‹ä¸­éœ€è¦è½½å…¥å†…å­˜ï¼Œå³éœ€è¦å æ®ä¸€äº›æ‰§è¡Œç©ºé—´ */
-#define SHF_EXECINSTR	0x4			/* ç”¨äºŽæŒ‡ç¤ºsectionä¸­åŒ…å«å¯æ‰§è¡Œä»£ç  */
-#define SHF_MASKPROC	0xf0000000	/* ç¼–è¯‘å™¨ä½¿ç”¨ç‰¹æ®Šä½ */
+#define SHF_WRITE	0x1				/* ÓÃÓÚÖ¸Ê¾sectionÔÚÖ´ÐÐ¹ý³ÌÖÐµÄµØÖ·¿Õ¼ä±ØÐë¾ßÓÐÐ´È¨ÏÞ */
+#define SHF_ALLOC	0x2				/* ÓÃÓÚÖ¸Ê¾sectionÔÚÖ´ÐÐ¹ý³ÌÖÐÐèÒªÔØÈëÄÚ´æ£¬¼´ÐèÒªÕ¼¾ÝÒ»Ð©Ö´ÐÐ¿Õ¼ä */
+#define SHF_EXECINSTR	0x4			/* ÓÃÓÚÖ¸Ê¾sectionÖÐ°üº¬¿ÉÖ´ÐÐ´úÂë */
+#define SHF_MASKPROC	0xf0000000	/* ±àÒëÆ÷Ê¹ÓÃÌØÊâÎ» */
 
-/* special section indexes æ­£å¸¸çš„ç›´æŽ¥å°±æ˜¯objfileä¸­sectionè¡¨é¡¹çš„ç´¢å¼• ä½†å­˜åœ¨ä»¥ä¸‹è‹¥å¹²ç‰¹ä¾‹ ä¸æŒ‡å‘ç‰¹å®šçš„section */
-#define SHN_UNDEF	0				/* objectæ–‡ä»¶ä¸­ Elf32_Shdrè¡¨çš„ç¬¬0é¡¹æ˜¯æ— æ•ˆé¡¹ æ‰€ä»¥ç´¢å¼•0å°±æ˜¯ä¸€ä¸ªæ— æ•ˆç´¢å¼• */
+/* special section indexes Õý³£µÄÖ±½Ó¾ÍÊÇobjfileÖÐsection±íÏîµÄË÷Òý µ«´æÔÚÒÔÏÂÈô¸ÉÌØÀý ²»Ö¸ÏòÌØ¶¨µÄsection */
+#define SHN_UNDEF	0				/* objectÎÄ¼þÖÐ Elf32_Shdr±íµÄµÚ0ÏîÊÇÎÞÐ§Ïî ËùÒÔË÷Òý0¾ÍÊÇÒ»¸öÎÞÐ§Ë÷Òý */
 #define SHN_LORESERVE	0xff00
 #define SHN_LOPROC	0xff00
 #define SHN_HIPROC	0xff1f
@@ -118,32 +118,32 @@ typedef struct elf32_shdr {
 #define SHN_COMMON	0xfff2
 #define SHN_HIRESERVE	0xffff
 
-/* SHT_SYMTABæ®µä¸­çš„entry æ¯ä¸ªentryè¡¨ç¤ºä¸€ä¸ªsymbol */
+/* SHT_SYMTAB¶ÎÖÐµÄentry Ã¿¸öentry±íÊ¾Ò»¸ösymbol */
 typedef struct elf32_sym{
   Elf32_Word	st_name;
-  Elf32_Addr	st_value;           /* å¯¹äºŽå¯é‡å®šå‘æ–‡ä»¶(-cå‡ºæ¥çš„)è€Œè¨€
-                                            å¦‚æžœst_shndxä¸ºSHN_COMMON ç›¸å½“äºŽè¯´è¿™ä¸ªç¬¦å·å¯ä»¥ä»»æ„æ”¾ åˆ™st_valueå­˜çš„æ˜¯å¯¹é½é™åˆ¶
-                                            å¦‚æžœst_shndxä¸ºä¸€ä¸ªæœ‰æ•ˆsectionç´¢å¼• åˆ™st_valueå­˜çš„æ˜¯è¯¥ç¬¦å·ç›¸å¯¹ä¸Žst_shndxæŒ‡å®šæ®µèµ·å§‹çš„åç§»ä½ç½® 
-                                       å¯¹äºŽå¯æ‰§è¡Œæ–‡ä»¶æˆ–è€…å…±äº«åº“æ–‡ä»¶è€Œè¨€ è¯¥å€¼ç›´æŽ¥æ˜¯ä¸€ä¸ªè™šæ‹Ÿåœ°å€ */
+  Elf32_Addr	st_value;           /* ¶ÔÓÚ¿ÉÖØ¶¨ÏòÎÄ¼þ(-c³öÀ´µÄ)¶øÑÔ
+                                            Èç¹ûst_shndxÎªSHN_COMMON Ïàµ±ÓÚËµÕâ¸ö·ûºÅ¿ÉÒÔÈÎÒâ·Å Ôòst_value´æµÄÊÇ¶ÔÆëÏÞÖÆ
+                                            Èç¹ûst_shndxÎªÒ»¸öÓÐÐ§sectionË÷Òý Ôòst_value´æµÄÊÇ¸Ã·ûºÅÏà¶ÔÓëst_shndxÖ¸¶¨¶ÎÆðÊ¼µÄÆ«ÒÆÎ»ÖÃ 
+                                       ¶ÔÓÚ¿ÉÖ´ÐÐÎÄ¼þ»òÕß¹²Ïí¿âÎÄ¼þ¶øÑÔ ¸ÃÖµÖ±½ÓÊÇÒ»¸öÐéÄâµØÖ· */
   Elf32_Word	st_size;
-  unsigned char	st_info;            /* é«˜4bitæ˜¯bind ä½Ž4bitæ˜¯type */
+  unsigned char	st_info;            /* ¸ß4bitÊÇbind µÍ4bitÊÇtype */
   unsigned char	st_other;           /* This member currently holds 0 and has no defined meaning. */
-  Elf32_Half	st_shndx;           /* æ¯ä¸ªç¬¦å·æœ‰ä¸€ä¸ªç›¸å…³çš„section ä¾‹å¦‚SHN_UNDEFå°±è¯´æ˜Žè¯¥symbolæ²¡æœ‰å®šä¹‰ */
+  Elf32_Half	st_shndx;           /* Ã¿¸ö·ûºÅÓÐÒ»¸öÏà¹ØµÄsection ÀýÈçSHN_UNDEF¾ÍËµÃ÷¸ÃsymbolÃ»ÓÐ¶¨Òå */
 } Elf32_Sym;
 
-/* ä»¥ä¸‹å®ç”¨äºŽElf32_Sym.st_info */
+/* ÒÔÏÂºêÓÃÓÚElf32_Sym.st_info */
 #define ELF32_ST_BIND(i) ((i)>>4)
 #define ELF32_ST_TYPE(i) ((i)&0xf)
 #define ELF32_ST_INFO(b,t) (((b)<<4)+((t)&0xf))
 
-/* Elf32_Sym.st_infoé«˜4bitçš„bindçš„å–å€¼ æ— è®ºæ˜¯å˜é‡è¿˜æ˜¯å‡½æ•° éƒ½å…·æœ‰bindå±žæ€§ */
-#define STB_LOCAL  0                /* objfileä¹‹å¤–ä¸å¯è§çš„ æ¯ä¸ªobjå†…éƒ¨è‡ªå·±ä½¿ç”¨ ä¸åŒobjfileå¯ä»¥é‡å */
+/* Elf32_Sym.st_info¸ß4bitµÄbindµÄÈ¡Öµ ÎÞÂÛÊÇ±äÁ¿»¹ÊÇº¯Êý ¶¼¾ßÓÐbindÊôÐÔ */
+#define STB_LOCAL  0                /* objfileÖ®Íâ²»¿É¼ûµÄ Ã¿¸öobjÄÚ²¿×Ô¼ºÊ¹ÓÃ ²»Í¬objfile¿ÉÒÔÖØÃû */
 #define STB_GLOBAL 1
 #define STB_WEAK   2
 #define STB_LOPORC  13
 #define STB_HIPORC  15
 
-/* Elf32_Sym.st_infoä½Ž4bitçš„typeçš„å–å€¼ */
+/* Elf32_Sym.st_infoµÍ4bitµÄtypeµÄÈ¡Öµ */
 #define STT_NOTYPE  0
 #define STT_OBJECT  1
 #define STT_FUNC    2
@@ -154,25 +154,25 @@ typedef struct elf32_sym{
 
 
 typedef struct elf32_rel {
-  Elf32_Addr	r_offset;       /* å¯¹äºŽå¯é‡å®šå‘æ–‡ä»¶è€Œè¨€: è¯¥å˜é‡è¡¨ç¤ºå¾…é‡å®šå‘çš„ç¬¦å·åœ¨ç›®æ ‡sectionä¸­åç§»
-                                                        é€šè¿‡sh_infoå¯ä»¥æ‰¾åˆ°ç›®æ ‡section ç„¶åŽåœ¨baseä¸ŠåŠ ä¸Šè¿™ä¸ªr_offset
-                                                        åˆ™æ˜¯æœ€ç»ˆéœ€è¦åšé‡å®šå‘é‚£ä¸ªç¬¦å·çš„ä½ç½®äº†
-                                   å¯¹äºŽå¯æ‰§è¡Œæ–‡ä»¶æˆ–å…±äº«åº“æ–‡ä»¶è€Œè¨€: è¯¥è¡¨é¡¹è¡¨ç¤ºå¾…é‡å®šå‘çš„ç¬¦å·æ‰€åœ¨ä½ç½®çš„è™šæ‹Ÿåœ°å€ */
-  Elf32_Word	r_info;         /* é«˜24bitæ˜¯è¯¥é‡å®šå‘æ“ä½œçš„ç¬¦å·åœ¨ç¬¦å·è¡¨ä¸­çš„ç´¢å¼• ç¬¦å·è¡¨åœ¨sectionè¡¨ä¸­çš„ç´¢å¼•ç”±æœ¬sectionçš„sh_linkå­—æ®µç»™å‡º ä½Ž8bitæ˜¯type*/
+  Elf32_Addr	r_offset;       /* ¶ÔÓÚ¿ÉÖØ¶¨ÏòÎÄ¼þ¶øÑÔ: ¸Ã±äÁ¿±íÊ¾´ýÖØ¶¨ÏòµÄ·ûºÅÔÚÄ¿±êsectionÖÐÆ«ÒÆ
+                                                        Í¨¹ýsh_info¿ÉÒÔÕÒµ½Ä¿±êsection È»ºóÔÚbaseÉÏ¼ÓÉÏÕâ¸ör_offset
+                                                        ÔòÊÇ×îÖÕÐèÒª×öÖØ¶¨ÏòÄÇ¸ö·ûºÅµÄÎ»ÖÃÁË
+                                   ¶ÔÓÚ¿ÉÖ´ÐÐÎÄ¼þ»ò¹²Ïí¿âÎÄ¼þ¶øÑÔ: ¸Ã±íÏî±íÊ¾´ýÖØ¶¨ÏòµÄ·ûºÅËùÔÚÎ»ÖÃµÄÐéÄâµØÖ· */
+  Elf32_Word	r_info;         /* ¸ß24bitÊÇ¸ÃÖØ¶¨Ïò²Ù×÷µÄ·ûºÅÔÚ·ûºÅ±íÖÐµÄË÷Òý ·ûºÅ±íÔÚsection±íÖÐµÄË÷ÒýÓÉ±¾sectionµÄsh_link×Ö¶Î¸ø³ö µÍ8bitÊÇtype*/
 } Elf32_Rel;
 
 typedef struct elf32_rela{
-  Elf32_Addr	r_offset;       /* åŒElf32_Rel.r_offset */
-  Elf32_Word	r_info;         /* åŒElf32_Rel.r_info */
+  Elf32_Addr	r_offset;       /* Í¬Elf32_Rel.r_offset */
+  Elf32_Word	r_info;         /* Í¬Elf32_Rel.r_info */
   Elf32_Sword	r_addend;
 } Elf32_Rela;
 
-/* ç”¨äºŽæ“ä½œElf32_Rel.r_info */
+/* ÓÃÓÚ²Ù×÷Elf32_Rel.r_info */
 #define ELF32_R_SYM(i) ((i)>>8)
 #define ELF32_R_TYPE(i) ((unsigned char)(i))
 #define ELF32_R_INFO(s,t) (((s)<<8)+(unsigned char)(t))
 
-/* Elf32_Rel.r_infoä¸­ä½Žbitçš„é‡å®šå‘ç±»åž‹ */
+/* Elf32_Rel.r_infoÖÐµÍbitµÄÖØ¶¨ÏòÀàÐÍ */
 #define R_386_NONE	0
 #define R_386_32	1
 #define R_386_PC32	2

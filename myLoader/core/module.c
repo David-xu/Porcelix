@@ -43,7 +43,7 @@ static void symtbl_prep(void)
 	}
 	ASSERT((pos - allsym_namebuff) == sz_allsymnamebuff);
 
-	printf("total %d symbols in the mld.\n", n_allsym);
+	DEBUG("total %d symbols in the mld.\n", n_allsym);
 
 	/* init modcache, which used to store all module desc */
 	modcache = memcache_create(sizeof(kmodule_t), BUDDY_RANK_4K, "kmodule_desc");
@@ -51,7 +51,7 @@ static void symtbl_prep(void)
 
 }
 
-/* æœ€å…ˆåˆå§‹åŒ–å…¨å±€ç¬¦å·è¡¨ æ‰“å°è°ƒç”¨æ ˆéœ€è¦ç”¨åˆ° */
+/* ×îÏÈ³õÊ¼»¯È«¾Ö·ûºÅ±í ´òÓ¡µ÷ÓÃÕ»ĞèÒªÓÃµ½ */
 module_init(symtbl_prep, 0);
 
 /*
@@ -59,29 +59,28 @@ module_init(symtbl_prep, 0);
  */
 void init_module(void)
 {
-    u32 *p, i, initfuncstat[ARRAY_ELEMENT_SIZE(moduleinitlist)];
-    moduleinit init;
+	u32 *p, i, initfuncstat[ARRAY_ELEMENT_SIZE(moduleinitlist)];
+	moduleinit init;
 
 	for (i = 0; i < ARRAY_ELEMENT_SIZE(moduleinitlist); i++)
-    {
-        initfuncstat[i] = 0;
-        for (p = (u32 *)(moduleinitlist[i].begin);
-             p < (u32 *)(moduleinitlist[i].end);
-             p++)
-        {
+	{
+		initfuncstat[i] = 0;
+		for (p = (u32 *)(moduleinitlist[i].begin);
+			 p < (u32 *)(moduleinitlist[i].end);
+			 p++)
+		{
 			init = (moduleinit)(*p);
 			init();
 			initfuncstat[i]++;
-        }
-    }
-	
-    printf("module init count:\n");
-    for (i = 0; i < ARRAY_ELEMENT_SIZE(moduleinitlist); i++)
-    {
-        printf("l(%d):%#2x ", i, initfuncstat[i]);
-    }
-	printf("\n");
+		}
+	}
 
+	DEBUG("module init count:\n");
+	for (i = 0; i < ARRAY_ELEMENT_SIZE(moduleinitlist); i++)
+	{
+		DEBUG("l(%d):%#2x ", i, initfuncstat[i]);
+	}
+	DEBUG("\n");
 }
 
 char *allsym_resolvaddr(u32 addr, u32 *baseaddr)
@@ -137,7 +136,7 @@ static int resolve_symb(kmodule_t *mod, Elf32_Ehdr *ehdr, Elf32_Shdr *shdr)
 			break;
 	if (i == ehdr->e_shnum)
 	{
-		printf("can't find symbol table section in module file.\n");
+		printk("can't find symbol table section in module file.\n");
 		return -1;
 	}
 	ASSERT(shdr[i].sh_entsize == sizeof(Elf32_Sym));
@@ -164,7 +163,7 @@ static int resolve_symb(kmodule_t *mod, Elf32_Ehdr *ehdr, Elf32_Shdr *shdr)
 			if (ELF32_ST_BIND(sym[i].st_info) == STB_WEAK)
 				break;
 
-			printf("can't resolve sym \"%s\" in mld export symlist.\n", symname);
+			printk("can't resolve sym \"%s\" in mld export symlist.\n", symname);
 			return -1;
 
 		case SHN_COMMON:
@@ -211,7 +210,7 @@ static int relocate_sym_32(kmodule_t *mod, Elf32_Shdr *shdr, int destsect, int r
 			*location += sym[symidx].st_value - (u32)location;
 			break;
 		default:
-			printf("unknown rel type: %d sym: %s\n", ELF32_R_TYPE(rel[i].r_info), symname);
+			printk("unknown rel type: %d sym: %s\n", ELF32_R_TYPE(rel[i].r_info), symname);
 			return -1;
 		}
 	}
@@ -256,19 +255,19 @@ static int modfile_load(kmodule_t *mod)
 
 	if (memcmp(ehdr->e_ident, ELFHEAD_MAGICNUM, strlen(ELFHEAD_MAGICNUM)))
 	{
-		printf("elf head magic num error.\n");
+		printk("elf head magic num error.\n");
 		return -1;
 	}
 
 	if (ehdr->e_type != ET_REL)
 	{
-		printf("module file is NOT a Relocatable file.\n");
+		printk("module file is NOT a Relocatable file.\n");
 		return -1;
 	}
 
 	if (ehdr->e_ehsize != sizeof(Elf32_Ehdr))
 	{
-		printf("elf head size error %d, should be sizeof(Elf32_Ehdr) = %d\n", ehdr->e_ehsize, sizeof(Elf32_Ehdr));
+		printk("elf head size error %d, should be sizeof(Elf32_Ehdr) = %d\n", ehdr->e_ehsize, sizeof(Elf32_Ehdr));
 	}
 
 	/* locate the string table which store all of the section name */
@@ -288,7 +287,7 @@ static int modfile_load(kmodule_t *mod)
 	idx = findsectbyname(mod, SECTIONNAME_MODNAME, ehdr, shdr);
 	if (idx < 0)
 	{
-		printf("can't find section \"%s\" in the module file.\n", SECTIONNAME_MODNAME);
+		printk("can't find section \"%s\" in the module file.\n", SECTIONNAME_MODNAME);
 		return -1;
 	}
 	mod->name = mod->modbuff + shdr[idx].sh_offset;
@@ -297,7 +296,7 @@ static int modfile_load(kmodule_t *mod)
 	idx = findsectbyname(mod, SECTIONNAME_MODFUNC, ehdr, shdr);
 	if (idx < 0)
 	{
-		printf("can't find section \"%s\" in the module file.\n", SECTIONNAME_MODFUNC);
+		printk("can't find section \"%s\" in the module file.\n", SECTIONNAME_MODFUNC);
 		return -1;
 	}
 	modfunc_desc_t *modfunc = mod->modbuff + shdr[idx].sh_offset;
@@ -325,13 +324,13 @@ static void cmd_insmod_opfunc(char *argv[], int argc, void *param)
 	/* loader module file */
 	if (argc != 2)
 	{
-		printf("usage: insmod filename.\n");
+		printk("usage: insmod filename.\n");
 		return;
 	}
 	int filesize = fs_readfile(cursel_partition, argv[1], NULL);
 	if (filesize < 0)
 	{
-		printf("Can't find module file \"%s\"\n", argv[1]);
+		printk("Can't find module file \"%s\"\n", argv[1]);
 		return;
 	}
 	DEBUG("module file size: %dM  %dK  %dB.\n",
@@ -342,7 +341,7 @@ static void cmd_insmod_opfunc(char *argv[], int argc, void *param)
 	kmodule_t *mod = memcache_alloc(modcache);
 	if (mod == NULL)
 	{
-		printf("alloc module desc faild.\n");
+		printk("alloc module desc faild.\n");
 		return;
 	}
 	mod->size = filesize;
@@ -358,14 +357,14 @@ static void cmd_insmod_opfunc(char *argv[], int argc, void *param)
 
 	if (0 != modfile_load(mod))
 	{
-		printf("insert module faild.\n");
+		printk("insert module faild.\n");
 		goto insmod_faild;
 	}
 
 	/* call the init func of this module */
 	int ret = mod->mod_init();
 	if (ret)
-		printf("init func of module \"%s\" return %d.\n", mod->name, ret);
+		printk("init func of module \"%s\" return %d.\n", mod->name, ret);
 
 	/* insert into module list */
 	list_add_head(&(mod->modlist), &kmodlist);
@@ -391,7 +390,7 @@ static void cmd_lsmod_opfunc(char *argv[], int argc, void *param)
 	kmodule_t *p;
 	LIST_FOREACH_ELEMENT(p, &kmodlist, modlist)
 	{
-		printf("%s\t\t0x%#8x\t0x%#8x\n", p->name, p->size, 0x1 << (p->ocpy_rk + PAGESIZE_SHIFT));
+		printk("%s\t\t0x%#8x\t0x%#8x\n", p->name, p->size, 0x1 << (p->ocpy_rk + PAGESIZE_SHIFT));
 	}
 }
 
@@ -407,7 +406,7 @@ static void cmd_rmmod_opfunc(char *argv[], int argc, void *param)
 	u32 namelen = strlen(argv[1]);
 	if (argc != 2)
 	{
-		printf("USAGE: rmmod modname\n");
+		printk("USAGE: rmmod modname\n");
 		return;
 	}
 
@@ -426,11 +425,11 @@ static void cmd_rmmod_opfunc(char *argv[], int argc, void *param)
 		page_free(p->modbuff);
 		memcache_free(modcache, p);
 
-		printf("mod \"%s\" has been removed.\n", argv[1]);
+		printk("mod \"%s\" has been removed.\n", argv[1]);
 		return;
 	}
 
-	printf("can't find mod \"%s\"\n", argv[1]);
+	printk("can't find mod \"%s\"\n", argv[1]);
 }
 
 struct command cmd_rmmod _SECTION_(.array.cmd) =

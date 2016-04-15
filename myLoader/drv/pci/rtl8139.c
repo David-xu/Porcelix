@@ -91,7 +91,7 @@ static void realtek8139_isr(struct pt_regs *regs, void *param)
                                           rtk8139->rx_cur + 4), new_ef->len);
             if (rtl8139_rxdbg)
             {
-                printf("rxstatus:0x%#8x  "
+                printk("rxstatus:0x%#8x  "
                        "CAPR:0x%#4x   CBR:0x%#4x\n"
                        "rx pktdump:\n",
                        rxstatus,
@@ -127,19 +127,19 @@ static int realtek8139_tx(netdev_t *netdev, void *buf, u32 len)
 
     if (rtl8139_txdbg)
     {
-        printf("tx pktdump:\n");
+        printk("tx pktdump:\n");
         dump_ram(buf, len);
 
         ethii_header_t *ethiiheader = (ethii_header_t *)buf;
         if (SWAP_2B(ethiiheader->ethtype) == L2TYPE_IPV4)
         {
-            printf("ipv4 header:\n");
+            printk("ipv4 header:\n");
             ipv4_header_t *ipv4header = (ipv4_header_t *)((u32)buf + sizeof(ethii_header_t));
             ipv4header_dump(ipv4header);
 
             if (ipv4header->protocol == IPV4PROTOCOL_UDP)
             {
-                printf("udp header:\n");
+                printk("udp header:\n");
                 udp_header_t *udpheader = (udp_header_t *)((u32)ipv4header + ipv4header->headerlen * 4);
                 udpheader_dump(udpheader);
             }
@@ -190,7 +190,7 @@ static int realtek8139_devinit(struct pci_dev *dev)
     /* register the int */
     if (interrup_register(dev->pcicfg.u.cfg.intline, realtek8139_isr, dev) != 0)
     {
-        printf("realtek8139_isr register failed.\n");
+        printk("realtek8139_isr register failed.\n");
         return -1;
     }
 
@@ -285,11 +285,11 @@ static void cmd_rtl8139stat_opfunc(char *argv[], int argc, void *param)
         for (count = 0; count < ARRAY_ELEMENT_SIZE(rtl8139_intstat); count++)
         {
             if ((count % 4) == 0)
-                printf("\n");
+                printk("\n");
         
-            printf("%2d-->%4d,    ", count + 1, rtl8139_intstat[count]);
+            printk("%2d-->%4d,    ", count + 1, rtl8139_intstat[count]);
         }
-        printf("\n");
+        printk("\n");
     }
     else if ((argc == 2) || (argc == 3))
     {
@@ -317,12 +317,12 @@ static void cmd_rtl8139stat_opfunc(char *argv[], int argc, void *param)
         }
         else
         {
-            printf("invalid command.\n");
+            printk("invalid command.\n");
         }
     }
     else
     {
-        printf("invalid command.\n");
+        printk("invalid command.\n");
     }
 }
 

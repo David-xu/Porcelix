@@ -170,7 +170,7 @@ int hd_drv_read(device_t *dev, u32 addr, void *buff, u32 size)
     outb(HD_CMD_READ, PORT_HD_STAT_COMMAND);
     barrier();
 
-    DEBUG_HD("hd read begin...\n");
+    DEBUG_HD("hd read begin eflag:0x%#8x...\n", native_save_fl());
     while (rq.flag);
     hd_cur_rq = NULL;
     DEBUG_HD("hd read complete.\n");
@@ -284,7 +284,7 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
 
     if (argc == 1)
     {
-        printf("-d       : display all partion status.\n"
+        printk("-d       : display all partion status.\n"
                "-m [part]: mount or display mount partition.\n");
         return;
     }
@@ -294,7 +294,7 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
     {
         for (i = 0; i < HD_PDTENTRY_NUM; i++)
         {
-            printf("hd(0,%d) info:\n"
+            printk("hd(0,%d) info:\n"
                    "bootflag: 0x%#2x, fstype: 0x%#2x\n"
                    "From C:H:S->0x%#3x:0x%#2x:0x%#2x (logic sect NO. 0x%#8x)\n"
                    "To   C:H:S->0x%#3x:0x%#2x:0x%#2x (logic sect NO. 0x%#8x)\n",
@@ -315,13 +315,13 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
                 part_desc = hdpart_desc + i;
                 if (part_desc->fs)
                 {
-                    printf("hd(0,%d): fs type \"%s\".\n", i, part_desc->fs->name);
+                    printk("hd(0,%d): fs type \"%s\".\n", i, part_desc->fs->name);
                     flag = 1;
                 }
             }
             if (flag == 0)
             {
-                printf("No mounted patition.\n");
+                printk("No mounted patition.\n");
             }
         }
         else    /* mount fs */
@@ -329,7 +329,7 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
             unsigned dstpartidx = str2num(argv[2]);
             if (dstpartidx > 3)
             {
-                printf("Invalid partition index %d.\n", dstpartidx);
+                printk("Invalid partition index %d.\n", dstpartidx);
                 return;
             }
             struct partition_desc *dstpart = &(hdpart_desc[dstpartidx]);
@@ -352,12 +352,12 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
                 {
                     dstpart->fs = fs;
                     cursel_partition = hdpart_desc + dstpartidx;
-                    printf("HD(0,%d) mounted as \"%s\" fs.\n", dstpartidx, fs->name);
+                    printk("HD(0,%d) mounted as \"%s\" fs.\n", dstpartidx, fs->name);
                     return;
                 }
             }
             
-            printf("HD(0,%d) mounted failed.\n", dstpartidx);
+            printk("HD(0,%d) mounted failed.\n", dstpartidx);
         }
     }
     else if (memcmp(argv[1], "-u", strlen("-u")) == 0)
@@ -369,18 +369,18 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
     {
         if (argc != 3)
         {
-            printf("Invalid parameter number.\n");
+            printk("Invalid parameter number.\n");
             return;
         }
         unsigned dstpartidx = str2num(argv[2]);
         if (dstpartidx > 3)
         {
-            printf("Invalid partition index %d.\n", dstpartidx);
+            printk("Invalid partition index %d.\n", dstpartidx);
             return;
         }
         if (hdpart_desc[dstpartidx].fs == NULL)
         {
-            printf("HD(0,%d) hasn't been mounted.\n", dstpartidx);
+            printk("HD(0,%d) hasn't been mounted.\n", dstpartidx);
             return;
         }
         
@@ -391,33 +391,33 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
     {
         if (argc != 4)
         {
-            printf("Invalid parameter number. should be \"-r sector addr.\"\n");
+            printk("Invalid parameter number. should be \"-r sector addr.\"\n");
             return;
         }
         u32 sector = str2num(argv[2]);
         u32 addr = str2num(argv[3]);
         device_t *hd0 = gethd_dev(HDPART_HD0_WHOLE);
         hd0->driver->read(hd0, sector, (void *)addr, 1);
-        printf("read finished.\n");
+        printk("read finished.\n");
     }
     /* write one sector */
     else if (memcmp(argv[1], "-w", strlen("-w")) == 0)
     {
         if (argc != 4)
         {
-            printf("Invalid parameter number. should be \"-w sector addr.\"\n");
+            printk("Invalid parameter number. should be \"-w sector addr.\"\n");
             return;
         }
         u32 sector = str2num(argv[2]);
         u32 addr = str2num(argv[3]);
         device_t *hd0 = gethd_dev(HDPART_HD0_WHOLE);
         hd0->driver->write(hd0, sector, (void *)addr, 1);
-        printf("write finished.\n");
+        printk("write finished.\n");
     }
 
     else
     {
-        printf("Unknown option \"%s\".\n", argv[1]);
+        printk("Unknown option \"%s\".\n", argv[1]);
     }
 }
 

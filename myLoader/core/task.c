@@ -1,383 +1,1 @@
-#include "typedef.h"
-#include "task.h"
-#include "list.h"
-#include "section.h"
-#include "command.h"
-#include "module.h"
-#include "spinlock.h"
-#include "desc.h"
-#include "interrupt.h"
-#include "boot.h"
-#include "memory.h"
-#include "userbin.h"
-
-/* running q */
-DEFINE_SPINLOCK(task_rq_lock);
-static LIST_HEAD(task_running);
-
-/* stop q */
-DEFINE_SPINLOCK(task_sq_lock);
-static LIST_HEAD(task_stop);
-
-/* exit q, those tasks has called exit(), but the body hasn't been reclaim yet */
-DEFINE_SPINLOCK(task_eq_lock);
-static LIST_HEAD(task_exit);
-
-static memcache_t *task_cache;
-
-static int freepid = 0;
-
-/* we have only one tss */
-tss_t	global_tss;
-
-/* busy loop */
-void wait_ms(u32 ms)
-{
-	u32 count;
-	while (ms--)
-	{
-		for (count = 0; count < 4000; count++)
-		{
-			__asm__ __volatile__ (
-				"nop			\n\t"
-				:
-				:
-			);
-		}
-	}
-}
-
-u32 schedflag = 0;
-
-__attribute__((regparm(3))) task_t *__switch_to(task_t *prev, task_t *next)
-{
-	schedflag = 0;
-
-	/* switch TSS.sp0, ss0 is also the SYSDESC_DATA */
-	ASSERT(global_tss.ss0 == SYSDESC_DATA);
-	global_tss.sp0 = (u32)(next->stack) + TASKSTACK_SIZE;
-
-	/* switch cr3 */
-	global_tss.__cr3 = next->pgd_pa;
-	setCR3(next->pgd_pa);
-	
-    return next;
-}
-
-void idleloop(void)
-{
-    while (1)
-    {
-        struct list_head *p, *pn;
-        LIST_WALK_THROUTH_SAVE(p, &task_exit, pn)
-        {
-            spin_lock(&task_eq_lock);
-            list_remove(p);
-            spin_unlock(&task_eq_lock);
-        
-            task_t *t = GET_CONTAINER(p, task_t, q);
-
-            page_free(t->stack);
-        }
-        schedule();
-    }
-}
-
-static task_t *getnexttask(void)
-{
-    ASSERT(!(CHECK_LIST_EMPTY(&task_running)));
-
-    return GET_CONTAINER(task_running.next, task_t, q);
-}
-
-void schedule(void)
-{
-    task_t *prev = current;
-    task_t *next = getnexttask();
-
-    if (schedflag == 0)
-    {
-		schedflag = 1;
-	}
-	else
-	{
-		return;
-	}
-
-    if (next == NULL)
-    {
-        return;
-    }
-
-    if (prev == next)
-    {
-        return;
-    }
-
-    /* now the 'next' is at the head of the running q
-       we have to move it ot the tail of the running q */
-    spin_lock(&task_rq_lock);
-    list_remove(&(next->q));
-    list_add_tail(&(next->q), &task_running);
-    spin_unlock(&task_rq_lock);
-
-    /* context switch */
-    switch_to(prev, next);
-}
-
-void tail_sched(void)
-{
-	// schedule();
-
-	/* ç”±äºŽè¯¥è°ƒåº¦å‘ç”Ÿåœ¨è¿”å›žç”¨æˆ·æ€ä¹‹å‰ å¦‚æžœå‘çŽ°æ­¤æ—¶ä¾ç„¶æ˜¯ä¸€ä¸ªå†…æ ¸çº¿ç¨‹
-	   åˆ™è¯´æ˜Žå†…æ ¸çº¿ç¨‹çš„ä¸»ä½“å‡½æ•°è¿”å›žäº† æ­¤æ—¶ç›´æŽ¥æŠ¥é”™å¹¶exit() */
-#if 0
-	if (current->tskflag & TASKFLAG_KT)
-	{
-	    printf("kernel thread exit.\n");
-	    exit(0);		/* schedule */
-	}
-#endif
-}
-
-void exit(int exit_code)
-{
-    task_t *t = current;
-
-    /* now we remove the task outof the running q */
-    spin_lock(&task_rq_lock);
-    list_remove(&(t->q));
-    spin_unlock(&task_rq_lock);
-
-    spin_lock(&task_eq_lock);
-    list_add_head(&(t->q), &task_exit);
-    spin_unlock(&task_eq_lock);
-
-    /*  */
-    schedule();
-}
-
-int kernel_thread(task_entry entry, void *param)
-{
-	ASSERT(entry);
-
-    task_stack_t *newstack = (task_stack_t *)page_alloc(TASKSTACK_RANGE, MMAREA_NORMAL);
-    task_t *newtask = (task_t *)memcache_alloc(task_cache);
-    newstack->task = newtask;
-
-    newtask->stack = newstack;
-    newtask->state = STATE_RUNNING;
-	newtask->tskflag = TASKFLAG_KT;
-	newtask->pgd_pa = (u32)page_alloc(BUDDY_RANK_4K, MMAREA_NORMAL | PAF_ZERO);
-	/* MM_NORMALMEM_RANGEéƒ¨åˆ†ç›®å½•é¡¹ç›´æŽ¥æ‹·è´è¿‡æ¥, è¿™éƒ¨åˆ†çš„é¡µç›®å½•æ˜¯æ‰€æœ‰çš„taskå…±äº«çš„ */
-	memcpy((void *)newtask->pgd_pa, (void *)getCR3(), NORMALMEM_N_PDEENTRY * sizeof(pde_t));
-	
-    newtask->pid = freepid++;
-    /* insert in to the running q, need to get lock first */
-    spin_lock(&task_rq_lock);
-    list_add_head(&(newtask->q), &task_running);
-    spin_unlock(&task_rq_lock);
-
-	/* prepare the stack */
-	struct pt_regs *regs = (struct pt_regs *)((u32)newstack + TASKSTACK_SIZE) - 1;
-	regs->xgs = (int)entry;			/* kt entry func */
-	regs->orig_eax = (long)param;	/* kt entry func param */
-	regs->ebp = (u32)newstack + TASKSTACK_SIZE;
-
-    /**/
-    newtask->ctx_ip = (u32)kt_after_switch;
-    newtask->ctx_sp = (u32)regs;
-
-    
-    return newtask->pid;
-}
-
-int exec_test()
-{
-	struct pt_regs *regs = (struct pt_regs *)((u32)(current->stack) + TASKSTACK_SIZE) - 1;
-	void *usermode_space = page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);
-	regs->eip = 0x80000000;
-	regs->xcs = USRDESC_CODE | 0x3;
-	regs->eflags = EFLAGSMASK_IF | EFLAGSMASK_IOPL;
-	regs->esp = 0x80000000 + 0x2000;
-	regs->xss = USRDESC_DATA | 0x3;
-
-	regs->xds = USRDESC_DATA | 0x3;
-	regs->xes = USRDESC_DATA | 0x3;
-	regs->xfs = USRDESC_DATA | 0x3;
-
-	mmap(0x80000000, (u32)usermode_space, 0x2000, 1);
-
-	memcpy(usermode_space, (void *)user_bin, userbin_len);
-
-	return 0;
-}
-
-void sleep(int usec)
-{
-
-}
-
-/* system tick int */
-asmlinkage void lapictimer(void)
-{
-#if 1
-	u32 flags;
-	/* get the flag register */
-	asm volatile("pushf ; pop %0"
-				: "=rm" (flags)
-				: /* no input */
-				: "memory");
-	/* test the IF */
-	if (flags & (0x1 << 9))
-	{
-		conspc_printf(" int enable.");
-	}
-	else
-	{
-		conspc_printf("int disable.");
-	}
-#endif
-}
-
-/* this is the task0 init */
-void __init sched_init(void)
-{
-	/* åˆå§‹åŒ–å­˜æ”¾taskæè¿°ç¬¦çš„cache */
-	task_cache = memcache_create(sizeof(task_t), BUDDY_RANK_8K, "task desc");
-
-    task_stack_t *stack = getcurstack();
-    task_t *task0 = (task_t *)memcache_alloc(task_cache);
-	stack->task = task0;
-
-    /* we need to init current task 0 */
-    task0->stack = stack;
-    task0->state = STATE_RUNNING;
-	task0->tskflag = TASKFLAG_KT;
-    task0->pid = freepid++;
-	/* read the CR3 */
-	task0->pgd_pa = getCR3();
-	
-    /* insert in to the running q, need to get lock first */
-    spin_lock(&task_rq_lock);
-    list_add_tail(&(task0->q), &task_running);
-    spin_unlock(&task_rq_lock);
-
-#if 0
-    /* init the tick timer */
-    set_trap(CUSTOM_VECTOR_LAPICTIMER, lapictimer_entrance);
-    *((u32 *)0xFEE00380) = 0x100000;   /* initial count */
-    *((u32 *)0xFEE00320) = 0x20000 | CUSTOM_VECTOR_LAPICTIMER;
-#endif
-
-	/* init tss */
-#if 1
-	global_tss.ss0 = SYSDESC_DATA;
-	global_tss.sp0 = (u32)stack;
-	global_tss.__cr3 = task0->pgd_pa;
-	global_tss.cs = SYSDESC_CODE;
-	global_tss.es = SYSDESC_DATA;
-	global_tss.ss = SYSDESC_DATA;
-	global_tss.ds = SYSDESC_DATA;
-	global_tss.fs = SYSDESC_DATA;
-
-	set_tss(&global_tss, sizeof(global_tss));
-	set_tr();
-#endif
-}
-
-module_init(sched_init, 1);
-
-#ifdef CONFIG_SMP
-
-extern u32 initial_code, smpstart_addr, smp_apentry[0];
-extern void loader_entry();
-extern u32 smpap_initsp[16];
-
-/*  */
-volatile u32	smp_nap = 0;
-
-volatile u32	smp_testflag = 0;
-
-void testsmpentry(void)
-{
-	task_stack_t *stack = getcurstack();
-
-	while (1)
-	{
-		if (smp_testflag == (u32)stack)
-		{
-			u32 *apicidreg = (u32 *)0xfee00020;
-			printf("this is task stack:0x%#8x, apicid:%d\n"
-				   "CR0: 0x%#8x, CR3: 0x%#8x\n",
-				   smp_testflag, (*apicidreg) >> 24, getCR0(), getCR3());
-			smp_testflag = 0;
-		}
-	}
-}
-
-static void __init smp_init(void)
-{
-	u32 smpinit_vect = (u32)jump2pe;
-	ASSERT(initial_code == (u32)loader_entry);
-	/* change the initial_code */
-	printf("change the entry initial_code: 0x%#8x--->0x%#8x\n", initial_code, (u32)smp_apentry);
-	initial_code = (u32)smp_apentry;
-
-	smp_nap = 0;
-
-	/* let's map the APIC register address */
-	mmap(0xFEE00000, 0xFEE00000, PAGE_SIZE, 0);
-
-	/* now we have to alloc some init task stack for each AP's */
-	/* now let's begin AP's */
-	*((volatile u32 *)0xFEE00310) = 0;
-	/* 1. send INIT IPI, write the ICR with 0xC4500 */
-	*((volatile u32 *)0xFEE00300) = 0xC4500;
-	wait_ms(10);
-
-	/* 2. send SIPI */
-	*((volatile u32 *)0xFEE00300) = 0xC4600 | (smpinit_vect >> 12);
-	wait_ms(200);
-
-	/* 3. send SIPI */
-	*((volatile u32 *)0xFEE00300) = 0xC4600 | (smpinit_vect >> 12);
-	wait_ms(1000);
-
-	/* wait for AP init, find out that how many AP's in system. */
-	smpap_initsp[0] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);
-	smpap_initsp[1] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);
-	smpap_initsp[2] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);
-	smpap_initsp[3] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);
-	smpap_initsp[4] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);
-	smpap_initsp[5] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);
-	smpap_initsp[6] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);
-	smpap_initsp[7] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);
-
-
-	/* now let's all the AP runnnnnnnnnnnnnnnn */
-	smpstart_addr = (u32)testsmpentry;
-}
-module_init(smp_init, 7);
-
-static void cmd_schedop_opfunc(char *argv[], int argc, void *param)
-{
-    unsigned i;
-    /* list all cmd and their info string */
-    if (argc == 2)
-    {
-    	i = str2num(argv[1]);
-		smp_testflag = i;
-		printf("smp_testflag: 0x%#8x\n", smp_testflag);
-    }
-}
-
-struct command cmd_schedop _SECTION_(.array.cmd) =
-{
-    .cmd_name   = "schedop",
-    .info       = "Some of schedule operations.",
-    .param      = NULL,
-    .op_func    = cmd_schedop_opfunc,
-};
-
-#endif
+#include "typedef.h"#include "task.h"#include "list.h"#include "section.h"#include "command.h"#include "module.h"#include "spinlock.h"#include "desc.h"#include "interrupt.h"#include "boot.h"#include "memory.h"#include "debug.h"/* running q */static LIST_HEAD(task_running);/* backup q, ±£´æÊ±¼äÆ¬ºÄ¾¡µÄÈÎÎñ */static LIST_HEAD(task_backup);/* wait q */static LIST_HEAD(task_wait);/* stop q */static LIST_HEAD(task_stop);/* exit q, those tasks has called exit(), but the body hasn't been reclaim yet */static LIST_HEAD(task_exit);DEFINE_SPINLOCK(task_q_lock);DEFINE_SPINLOCK(sched_lock);static memcache_t *task_cache = NULL;static int freepid = 0;/* we have only one tss */tss_t	global_tss;/* busy loop */void wait_ms(u32 ms){	u32 count;	while (ms--)	{		for (count = 0; count < 4000; count++)		{			__asm__ __volatile__ (				"nop			\n\t"				:				:			);		}	}}asmlinkage task_t *__switch_to(task_t *prev, task_t *next){	/* switch TSS.sp0, ss0 is also the SYSDESC_DATA */	ASSERT(global_tss.ss0 == SYSDESC_DATA);	global_tss.sp0 = (u32)(next->stack) + TASKSTACK_SIZE;	/* switch cr3 */	global_tss.__cr3 = next->pgd_pa;	setCR3(next->pgd_pa);	// spin_unlock(&sched_lock);    return next;}void disp_tasklist(struct list_head *head){	task_t *t;	LIST_FOREACH_ELEMENT(t, head, q)	{		printk("%d[%s pri:%d]\n", t->pid, t->name, t->pri);	}}void idleloop(void){    while (1)    {	        struct list_head *p, *pn;		/* ×Ô¶¯ÊÍ·Åexit²Ð´æµÄÈÎÎñÕ»ºÍÃèÊö½á¹¹Ìå */        LIST_WALK_THROUTH_SAVE(p, &task_exit, pn)        {            spin_lock(&task_q_lock);            list_remove(p);            spin_unlock(&task_q_lock);                    task_t *t = GET_CONTAINER(p, task_t, q);			printk("%d[%s] terminated.\n", t->pid, t->name);			/* ÊÍ·ÅÔËÐÐÕ» */            page_free(t->stack);			/* ÊÍ·Åtask½á¹¹Ìå */			memcache_free(task_cache, t);			/* ÊÍ·ÅÒ³Ä¿Â¼ */			page_free((void *)(t->pgd_pa));        }    }}static int task_pri_comp(struct list_head *a, struct list_head *b){	task_t *ta = GET_CONTAINER(a, task_t, q);	task_t *tb = GET_CONTAINER(b, task_t, q);	if (ta->pri < tb->pri)		return -1;	else if (ta->pri == tb->pri)		return 0;	else		return 1;}static void task_schedinfo_modify(task_t *t){	u32 nice = (t->slice_init - t->slice) * 10 / t->slice_init;	/* ¸ù¾ÝÏûºÄµÄsliceÖµÆÀ¹À¸ÃtaskµÄÐÐÎªÊÇI/OÐÍ»¹ÊÇCPUÐÍ */	t->pri = t->pri_init + nice - 5;	t->slice = t->slice_init = 20 + 5 * nice;}static task_t *getnexttask(void){	task_t *t;	/* ´Órunning¶ÓÁÐÖÐµ÷¶ÈµÚÒ»¸ötaskÖ´ÐÐ */	spin_lock(&task_q_lock);	/* Èç¹ûrunning¶ÓÁÐ¿ÕÁË ÔòÐèÒªÇÐ»»runningºÍbackup¶ÓÁÐ */	if (CHECK_LIST_EMPTY(&task_running))	{		/* µ÷»»task_runningºÍtask_backup */		task_running.next = task_backup.next;		task_backup.next->prev = &task_running;		task_running.prev = task_backup.prev;		task_backup.prev->next = &task_running;		_list_init(&task_backup);		/* running¶ÓÁÐ¿ÕÁËËµÃ÷Ò»´Îµ÷¶ÈÖÜÆÚÍê³É		   ÔÚwait¶ÓÁÐÖÐÉÐ´æµÄtask¿ÉÄÜ»¹Ã»ÓÐÓÃÍêslice ÐèÒªµ÷Õû¶¯Ì¬ÓÅÏÈ¼¶ºÍsliceÖµ */		LIST_FOREACH_ELEMENT(t, &task_wait, q)		{			task_schedinfo_modify(t);		}	}	/* ×ÜÊÇ·µ»ØrunningÖÐµÚÒ»¸ötask runningÊÇ°´ÕÕÓÅÏÈ¼¶ÓÐÐòµÄ */	t = GET_CONTAINER(task_running.next, task_t, q);	spin_unlock(&task_q_lock);	return t;}void schedule(void){	task_t *prev, *next;	// spin_lock(&sched_lock);	prev = current;	next = getnexttask();    if (prev == next)    {    	// spin_unlock(&sched_lock);        return;    }	DEBUG_SCHED("sched: %d[%s pri:%d] --> %d[%s pri:%d].\n",				prev->pid, prev->name, prev->pri,				next->pid, next->name, next->pri);    /* context switch */    switch_to(prev, next);	barrier();}void tail_sched(void){	/* task³õÊ¼»¯ÉÐÎ´Íê³É */	if (!is_taskinit_done())		return;	if (current->tskflag & TASKFLAG_NEEDSCHED)	{		current->tskflag ^= TASKFLAG_NEEDSCHED;		schedule();	}	/* ÓÉÓÚ¸Ãµ÷¶È·¢ÉúÔÚ·µ»ØÓÃ»§Ì¬Ö®Ç° Èç¹û·¢ÏÖ´ËÊ±ÒÀÈ»ÊÇÒ»¸öÄÚºËÏß³Ì	   ÔòËµÃ÷ÄÚºËÏß³ÌµÄÖ÷Ìåº¯Êý·µ»ØÁË ´ËÊ±Ö±½Ó±¨´í²¢exit() */#if 0	if (current->tskflag & TASKFLAG_KT)	{	    printk("kernel thread exit.\n");	    exit(0);		/* schedule */	}#endif}asmlinkage void exit(int exit_code){    task_t *t = current;    /* now we remove the task outof the running q */    spin_lock(&task_q_lock);    list_remove(&(t->q));    list_add_head(&(t->q), &task_exit);    spin_unlock(&task_q_lock);    /*  */    schedule();}static asmlinkage void thread_entrance(task_entry entry, void *param){	DEBUG_SCHED("%s start...%#8x  %#8x.\n", current->name, entry, param);	/* Ö´ÐÐÊµ¼ÊµÄÄÚºËÏß³Ìº¯Êý Èë·µ»ØÔòÖÕ½áÄÚºËÏß³Ì */	exit(entry(param));	/* ²»¿ÉÄÜÖ´ÐÐµ½´Ë´¦ */	ASSERT(0);}int kernel_thread(task_entry entry, const char *name, void *param){	ASSERT(entry);    task_stack_t *newstack = (task_stack_t *)page_alloc(TASKSTACK_RANK, MMAREA_NORMAL);    task_t *newtask = (task_t *)memcache_alloc(task_cache);    newstack->task = newtask;    newtask->stack = newstack;	newtask->name = name;    newtask->state = STATE_WAIT;	newtask->tskflag = TASKFLAG_KT;	newtask->pgd_pa = (u32)page_alloc(BUDDY_RANK_4K, MMAREA_NORMAL | PAF_ZERO);	/* MM_NORMALMEM_RANGE²¿·ÖÄ¿Â¼ÏîÖ±½Ó¿½±´¹ýÀ´, Õâ²¿·ÖµÄÒ³Ä¿Â¼ÊÇËùÓÐµÄtask¹²ÏíµÄ */	// memcpy((void *)newtask->pgd_pa, (void *)getCR3(), NORMALMEM_N_PDEENTRY * sizeof(pde_t));	memcpy((void *)newtask->pgd_pa, (void *)getCR3(), PAGE_SIZE);	    newtask->pid = freepid++;    /* insert in to the running q, need to get lock first */    spin_lock(&task_q_lock);	list_add_comp(&(newtask->q), &task_running, task_pri_comp);    spin_unlock(&task_q_lock);	/* ¼Ì³ÐcurrentµÄµ÷¶ÈÐÅÏ¢ */	newtask->pri = current->pri;	newtask->pri_init = current->pri_init;	newtask->slice = current->slice;	newtask->slice_init = current->slice_init;	/* prepare the stack */	struct pt_regs *regs = (struct pt_regs *)((u32)newstack + TASKSTACK_SIZE) - 1;	regs->eip = (long)thread_entrance;	/* iret Ö®ºóÌø×ªµ½¸Ãº¯ÊýÖ´ÐÐ ÊÇËùÓÐÄÚºËÏß³ÌµÄÍ³Ò»Èë¿Ú */	regs->eax = (long)entry;			/* ¾ßÌåµÄ´¦Àíº¯ÊýºÍ²ÎÊýÔòÔÚ¼Ä´æÆ÷»Ö¸´Ê±Ö±½Ó»Ö¸´µ½eax edxÉÏ */	regs->edx = (long)param;	regs->ebp = (u32)newstack + TASKSTACK_SIZE;	/**/	regs->xcs = SYSDESC_CODE;	regs->eflags = native_save_fl();/* use current eflags */	regs->xds = USRDESC_DATA;	regs->xes = USRDESC_DATA;	regs->xfs = USRDESC_DATA;    /**/    newtask->ctx_ip = (u32)thread_start;    newtask->ctx_sp = (u32)regs;    return newtask->pid;}/* this is the task0 init */void __init sched_init(void){	/* ³õÊ¼»¯´æ·ÅtaskÃèÊö·ûµÄcache */	task_cache = memcache_create(sizeof(task_t), BUDDY_RANK_8K, "task desc");    task_stack_t *stack = getcurstack();    task_t *task0 = (task_t *)memcache_alloc(task_cache);	stack->task = task0;    /* we need to init current task 0 */    task0->stack = stack;	task0->name = "idle";    task0->state = STATE_RUNNING;	task0->tskflag = TASKFLAG_KT;    task0->pid = freepid++;	/* read the CR3 */	task0->pgd_pa = getCR3();	task0->pri_init = 100;	task0->slice = task0->slice_init = 1;	task_schedinfo_modify(task0);	    /* insert in to the running q, need to get lock first */    spin_lock(&task_q_lock);	list_add_comp(&(task0->q), &task_running, task_pri_comp);    spin_unlock(&task_q_lock);	/* init tss */#if 1	global_tss.ss0 = SYSDESC_DATA;	global_tss.sp0 = (u32)stack;	global_tss.__cr3 = task0->pgd_pa;	global_tss.cs = SYSDESC_CODE;	global_tss.es = SYSDESC_DATA;	global_tss.ss = SYSDESC_DATA;	global_tss.ds = SYSDESC_DATA;	global_tss.fs = SYSDESC_DATA;	set_tss(&global_tss, sizeof(global_tss));	set_tr();#endif}module_init(sched_init, 1);void wakeup_task(task_t *task, wakeup_reason_e wu_r){	/* ÖØÐÂ½«task·ÅÈë¾ÍÐ÷¶ÓÁÐÖÐ²¢ÇÐ»»×´Ì¬ */	spin_lock(&(task_q_lock));	list_remove(&(task->q));	list_add_comp(&(task->q), &task_running, task_pri_comp);	spin_unlock(&(task_q_lock));	task->state = STATE_RUNNING;	/* task´Ówait_queue_t³ö¶Ó ÉèÖÃ»½ÐÑÔ­Òò */	spin_lock(&(task->wait.wq->wlock));	list_remove(&(task->wait.q));	spin_unlock(&(task->wait.wq->wlock));	task->wait.wu_r= wu_r;	/**/	current->tskflag |= TASKFLAG_NEEDSCHED;}/* * timeout : ms if set TIMEOUT_INFINIT, then infinit wait */wakeup_reason_e wait_task(task_t *task, wait_queue_t *wq, u32 timeout){	/* task0ÓÀÔ¶²»Ö÷¶¯×èÈû */	ASSERT(task->pid != 0);	/* task½øÈëwait¶ÓÁÐ²¢ÇÐ»»×´Ì¬ */	spin_lock(&(task_q_lock));	list_remove(&(task->q));	list_add_tail(&(task->q), &task_wait);	spin_unlock(&(task_q_lock));	task->state = STATE_WAIT;	/* ½«Õâ¸ötask¹Òµ½¶ÔÓ¦waitqueueÖÐ */	/* set timeout tick */	if (timeout == TIMEOUT_INFINIT)		task->wait.timeout = timeout;	else		task->wait.timeout = timeout * HZ / 1000;	task->wait.wq = wq;					/* ¼ÇÂ¼¸ÃtaskËùÊôµÄwaitqueue */	spin_lock(&(task->wait.wq->wlock));	list_add_tail(&(task->wait.q), &(wq->wlh));	spin_unlock(&(task->wait.wq->wlock));	schedule();	return task->wait.wu_r;}u32 is_taskinit_done(){	return (task_cache != NULL);}void systick(void){	if (!(is_taskinit_done()))		return;	/*  */	ASSERT(current != NULL);	if (current->slice == 0)	{		/* ¸ù¾ÝÔËÐÐÏûºÄµÄsliceÖØÖÃ¶¯Ì¬ÓÅÏÈ¼¶ºÍslice */		task_schedinfo_modify(current);		/* Ê±¼äÆ¬ÓÃÍê µ÷³örunning¶ÓÁÐ µ÷ÈëÊ±¼äÆ¬ºÄ¾¡¶ÓÁÐ */		list_remove(&(current->q));		list_add_comp(&(current->q), &task_backup, task_pri_comp);		current->tskflag |= TASKFLAG_NEEDSCHED;	}	else	{		(current->slice)--;	}	task_t *t;	/* ±éÀúwaitÁÐ±í Õë¶Ôtimeout²»ÎªTIMEOUT_INFINITµÄtask×ö¼ÆÊý Èç¹û·¢ÏÖÓÐ³¬Ê±µÄ ÐèÒª»½ÐÑ */	LIST_FOREACH_ELEMENT(t, &task_wait, q)	{		if (t->wait.timeout == TIMEOUT_INFINIT)			continue;		if (t->wait.timeout == 0)		{			/*  µÈ´ý³¬Ê±»½ÐÑ */			wakeup_task(t, WU_REASON_TIMEOUT);		}		(t->wait.timeout)--;	}}int waitqueue_init(wait_queue_t *wq){	_list_init(&(wq->wlh));	spinlock_init(&(wq->wlock));	return MLD_RET_OK;}#ifdef CONFIG_SMPextern u32 initial_code, smpstart_addr, smp_apentry[0];extern void loader_entry();extern u32 smpap_initsp[16];/*  */volatile u32	smp_nap = 0;volatile u32	smp_testflag = 0;void testsmpentry(void){	task_stack_t *stack = getcurstack();	while (1)	{		if (smp_testflag == (u32)stack)		{			u32 *apicidreg = (u32 *)0xfee00020;			printk("this is task stack:0x%#8x, apicid:%d\n"				   "CR0: 0x%#8x, CR3: 0x%#8x\n",				   smp_testflag, (*apicidreg) >> 24, getCR0(), getCR3());			smp_testflag = 0;		}	}}static void __init smp_init(void){	u32 smpinit_vect = (u32)jump2pe;	ASSERT(initial_code == (u32)loader_entry);	/* change the initial_code */	printk("change the entry initial_code: 0x%#8x--->0x%#8x\n", initial_code, (u32)smp_apentry);	initial_code = (u32)smp_apentry;	smp_nap = 0;	/* now we have to alloc some init task stack for each AP's */	/* now let's begin AP's */	*((volatile u32 *)0xFEE00310) = 0;	/* 1. send INIT IPI, write the ICR with 0xC4500 */	*((volatile u32 *)0xFEE00300) = 0xC4500;	wait_ms(10);	/* 2. send SIPI */	*((volatile u32 *)0xFEE00300) = 0xC4600 | (smpinit_vect >> 12);	wait_ms(200);	/* 3. send SIPI */	*((volatile u32 *)0xFEE00300) = 0xC4600 | (smpinit_vect >> 12);	wait_ms(1000);	/* wait for AP init, find out that how many AP's in system. */	smpap_initsp[0] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);	smpap_initsp[1] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);	smpap_initsp[2] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);	smpap_initsp[3] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);	smpap_initsp[4] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);	smpap_initsp[5] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);	smpap_initsp[6] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);	smpap_initsp[7] = (u32)page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);	/* now let's all the AP runnnnnnnnnnnnnnnn */	smpstart_addr = (u32)testsmpentry;}module_init(smp_init, 7);static void cmd_schedop_opfunc(char *argv[], int argc, void *param){    unsigned i;    /* list all cmd and their info string */    if (argc == 2)    {    	i = str2num(argv[1]);		smp_testflag = i;		printk("smp_testflag: 0x%#8x\n", smp_testflag);    }}struct command cmd_schedop _SECTION_(.array.cmd) ={    .cmd_name   = "schedop",    .info       = "Some of schedule operations.",    .param      = NULL,    .op_func    = cmd_schedop_opfunc,};#endif
