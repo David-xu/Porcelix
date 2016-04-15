@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 	}
 	mb = mmap(NULL, fst.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	
-	printf("const unsigned long userbin_len = 0x%x;\n\n", fst.st_size);
+	printf("const unsigned long userbin_len = 0x%lx;\n\n", fst.st_size);
 	
 	printf("const char user_bin[] = {\n");
 	for (i = 0; i < fst.st_size; i++)
