@@ -85,7 +85,7 @@ module: drv/testdev/*.c
 clean:
 	rm -rf $(obj) *~											\
 	core.elf core.bin core.disasm core.map core/*~				\
-	$(DESTISO_DIR) ../mkiso/*									\
+	$(DESTISO_DIR) ../mkiso										\
 	.tmp_core1 .tmp_core2 .tmp_allsym1.o .tmp_allsym2.o			\
 	$(bootobj) boot/boot.elf boot/boot.bin boot/boot.map boot/*~ 
 

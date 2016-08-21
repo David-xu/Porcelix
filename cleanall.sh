@@ -1,13 +1,16 @@
 #!/bin/bash
 
+#rm -rf mkiso/
+#rm *.iso
+
 pushd $(pwd)
 cd ./umexec
 make clean
 popd
 
 pushd $(pwd)
+
 cd ./myLoader
-make clean
 
 pushd $(pwd)
 cd ./tools
@@ -18,5 +21,7 @@ pushd $(pwd)
 cd ./udp_cli
 make clean
 popd
+
+make clean
 
 popd
