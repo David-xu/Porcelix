@@ -2,7 +2,7 @@
 
 pushd $(pwd)
 cd ./umexec
-make clean
+make all
 popd
 
 pushd $(pwd)
@@ -11,14 +11,14 @@ cd ./myLoader
 
 pushd $(pwd)
 cd ./tools
-make clean
+make all
 popd
 
 pushd $(pwd)
 cd ./udp_cli
-make clean
+make all
 popd
 
-make clean
+make clean all install_iso
 
 popd

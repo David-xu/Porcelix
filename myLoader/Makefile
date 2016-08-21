@@ -94,7 +94,8 @@ install:
 
 install_iso:
 	rm -rf $(DESTISO_DIR)
-	rm -rf ../mkiso/*
+	rm -rf ../mkiso
+	mkdir ../mkiso
 	dd if=./boot/boot.bin of=../mkiso/img bs=512 count=1
 	dd if=./core.bin of=../mkiso/img bs=512 seek=4 conv=notrunc
 	mkisofs -R -J -b img -no-emul-boot -o $(DESTISO_DIR) ../mkiso
