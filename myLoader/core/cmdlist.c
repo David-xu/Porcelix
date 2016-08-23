@@ -59,7 +59,21 @@ struct command cmd_dispcpu _SECTION_(.array.cmd) =
 
 /* 启动用户态线程例子 */
 static int exec_test()
-{	struct pt_regs *regs = (struct pt_regs *)((u32)(current->stack) + TASKSTACK_SIZE) - 1;	void *usermode_space = page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);	regs->eip = 0x80000000;	regs->xcs = USRDESC_CODE | 0x3;	regs->eflags = EFLAGSMASK_IF | EFLAGSMASK_IOPL;	regs->esp = 0x80000000 + 0x2000;	regs->xss = USRDESC_DATA | 0x3;	regs->xds = USRDESC_DATA | 0x3;	regs->xes = USRDESC_DATA | 0x3;	regs->xfs = USRDESC_DATA | 0x3;	mmap(0x80000000, (u32)usermode_space, 0x2000, 1);	memcpy(usermode_space, (void *)user_bin, userbin_len);	return 0;}
+{
+	struct pt_regs *regs = (struct pt_regs *)((u32)(current->stack) + TASKSTACK_SIZE) - 1;
+	void *usermode_space = page_alloc(BUDDY_RANK_8K, MMAREA_NORMAL);
+	regs->eip = 0x80000000;
+	regs->xcs = USRDESC_CODE | 0x3;
+	regs->eflags = EFLAGSMASK_IF | EFLAGSMASK_IOPL;
+	regs->esp = 0x80000000 + 0x2000;
+	regs->xss = USRDESC_DATA | 0x3;
+	regs->xds = USRDESC_DATA | 0x3;
+	regs->xes = USRDESC_DATA | 0x3;
+	regs->xfs = USRDESC_DATA | 0x3;
+	mmap(0x80000000, (u32)usermode_space, 0x2000, 1);
+	memcpy(usermode_space, (void *)user_bin, userbin_len);
+	return 0;
+}
 
 int testtask(void *param)
 {

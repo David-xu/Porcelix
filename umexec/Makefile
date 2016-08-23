@@ -13,7 +13,7 @@ bufftrans: bufftrans.c
 test.bin:test
 	objcopy -O binary $< $@
 
-test.c: test.o
+test.o: test.c
 
 test: test.o
 	ld -m elf_i386 -o $@ $^ -T test.ld -M > test.map

@@ -11,12 +11,12 @@ cd ./myLoader
 
 pushd $(pwd)
 cd ./tools
-make all
+make clean all
 popd
 
 pushd $(pwd)
 cd ./udp_cli
-make all
+make clean all
 popd
 
 make clean all install_iso

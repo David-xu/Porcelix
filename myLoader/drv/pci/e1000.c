@@ -21,7 +21,7 @@ static const u32 e1000_macaddr[2] = {0x5254, 0x00123456};
 /* register list */
 #define E1000REG_CTRL				(0x0000)
 #define E1000REG_ICR				(0x00C0)
-#define E1000REG_IMR				(0x00D0)
+#define E1000REG_IMS				(0x00D0)
 #define E1000REG_IMC				(0x00D8)
 
 /* receive control register */
@@ -85,7 +85,7 @@ typedef struct e1000_txdesc {
  * config the 'IOADDR' with dest register offset value (param 'off')
  * read (write) the value from(into) 'IODATA'
  */
-#define E1000_REGIOPORT				(0)
+#define E1000_REGIOPORT				(1)
 static void e1000_writeR(struct pci_dev *dev, u32 off, u32 value)
 {
 #if	E1000_REGIOPORT==1
@@ -109,6 +109,7 @@ static u32 e1000_readR(struct pci_dev *dev, u32 off)
 
 static u32 e1000_intstat[16] = {0};
 
+#if 0
 static void testsub_dispcpu()
 {
 	u32 cur_cs, cur_ds, cur_es, cur_ss, cur_esp;
@@ -139,10 +140,13 @@ static void testsub_dispcpu()
 		   cur_esp,
 		   getCR0(), getCR3());
 }
+#endif
 
 static void intele1000_isr(struct pt_regs *regs, void *param)
 {
+#if 0
 	testsub_dispcpu();
+#endif
 
 	struct pci_dev *dev = (struct pci_dev *)param;
 	netdev_t *e1000 = (netdev_t *)dev->param;
@@ -167,7 +171,7 @@ static void intele1000_isr(struct pt_regs *regs, void *param)
 		u32	rdt = e1000_readR(dev, E1000REG_RDT);
 		while (rdt != rdh)
 		{
-#if 1
+
 			/* receive a packet and insert in to the eh_proc */
 	        ethframe_t *new_ef;
 
@@ -178,9 +182,7 @@ static void intele1000_isr(struct pt_regs *regs, void *param)
             memcpy(new_ef->buf, (void *)((u32)(rdbuff[rdt].buffaddr)), new_ef->len);
 
             rxef_insert(new_ef);
-#else
-			dump_ram((void *)(u32)(rdbuff[rdt].buffaddr), rdbuff[rdt].length);
-#endif
+
 			rdt = (rdt + 1) % (e1000->n_rxdesc);
 		}
 
@@ -309,8 +311,16 @@ static int intele1000_devinit(struct pci_dev *dev)
 	e1000->dev = dev;
 	dev->param = e1000;
 
+	//
+	{
+	u32 ctrl_val = e1000_readR(dev, E1000REG_CTRL);
+	printk("e1000 init: ctrl 0x%#8x\n", ctrl_val);
+	ctrl_val &= ~(0x8);
+	e1000_writeR(dev, E1000REG_CTRL, ctrl_val);
+	}
+
 	/* init the int mask */
-	e1000_writeR(dev, E1000REG_IMR, 0xDC);
+	e1000_writeR(dev, E1000REG_IMS, 0xCC);
 
     /* register the int */
     if (interrup_register(dev->pcicfg.u.cfg.intline, intele1000_isr, dev) != 0)
@@ -326,10 +336,10 @@ static int intele1000_devinit(struct pci_dev *dev)
 	e1000->macaddr[3] = (u8)(e1000_macaddr[1] >> 16);
 	e1000->macaddr[4] = (u8)(e1000_macaddr[1] >> 8);
 	e1000->macaddr[5] = (u8)(e1000_macaddr[1] >> 0);
-	// e1000_writeR(dev, E1000REG_RAH(0), e1000_macaddr[0] | 0x80000000);
-	// e1000_writeR(dev, E1000REG_RAL(0), e1000_macaddr[1]);
-	e1000_writeR(dev, E1000REG_RAH(0), 0x5634 | 0x80000000);
-	e1000_writeR(dev, E1000REG_RAL(0), 0x12005452);
+	e1000_writeR(dev, E1000REG_RAH(0), e1000_macaddr[0] | 0x80000000);
+	e1000_writeR(dev, E1000REG_RAL(0), e1000_macaddr[1]);
+	// e1000_writeR(dev, E1000REG_RAH(0), 0x5634 | 0x80000000);
+	// e1000_writeR(dev, E1000REG_RAL(0), 0x12005452);
 
 	/* receive descriptor config */
 	e1000_writeR(dev, E1000REG_RDBAL, rdbuff);		/* the rd buff should align to 16 byte */
@@ -357,10 +367,10 @@ static int intele1000_devinit(struct pci_dev *dev)
 
 static vendor_device_t spt_vendev[] = {{PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_E1000},};
 
-static pci_drv_t intelw1000_drv = {
-    .drvname = "intelw1000_drv",
+static pci_drv_t intele1000_drv = {
+    .drvname = "intele1000_drv",
     .vendev = spt_vendev,
-    .n_vendev = ARRAY_ELEMENT_SIZE(intelw1000_drv.vendev),
+    .n_vendev = ARRAY_ELEMENT_SIZE(intele1000_drv.vendev),
     .pci_init = intele1000_devinit,
 };
 
@@ -369,7 +379,7 @@ static pci_drv_t intelw1000_drv = {
 static void __init intele1000init()
 {
     /* register the pci drv */
-    pcidrv_register(&intelw1000_drv);
+    pcidrv_register(&intele1000_drv);
 }
 
 module_init(intele1000init, 5);

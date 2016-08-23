@@ -9,8 +9,11 @@
 #include "ml_string.h"
 #include "interrupt.h"
 #include "task.h"
+#include "sem.h"
+#include "command.h"
 
 static LIST_HEAD(rxef_list);
+static sem_t rxef_sem;
 
 static LIST_HEAD(valid_sock);
 
@@ -198,16 +201,52 @@ void ethii_macswap(ethii_header_t *ethheader)
 
 }
 
+static u32 efdump_flag = 0;
+
+static void cmd_efdump_opfunc(char *argv[], int argc, void *param)
+{
+	if (argc == 1)
+		efdump_flag = 1;
+	else
+	{
+		if (argc == 2)
+		{
+			efdump_flag = str2num(argv[1]);
+		}
+		else
+		{
+
+		}
+	}
+}
+
+struct command cmd_efdump _SECTION_(.array.cmd) =
+{
+    .cmd_name   = "efdump",
+    .info       = "ethframe dump",
+    .op_func    = cmd_efdump_opfunc,
+};
+
+
 static void efproc(ethframe_t *ef)
 {
     ethii_header_t *ethheader = (ethii_header_t *)(ef->buf);
     u16 l2headerlen = sizeof(ethii_header_t);
     u16 l3headerlen;
 
+#if CONFIG_NET_DEBUG_SWITCH
+	if (efdump_flag)
+	{
+		efdump_flag--;
+		dump_ram(ef->buf, ef->len);
+	}
+#endif
+
     /* 802.1q, if exist */
     if (SWAP_2B(ethheader->ethtype) == L2TYPE_8021Q)
     {
         /* now we don't support 802.1q */
+		printk("802.1q, drop.\n");
         return;
     }
     
@@ -279,6 +318,7 @@ static void efproc(ethframe_t *ef)
                 ethii_macswap(ethheader);
 
                 ef->netdev->tx(ef->netdev, ethheader, ef->len);
+				printk("icmp after tx\n");
             }
             break;
         }
@@ -286,6 +326,7 @@ static void efproc(ethframe_t *ef)
         {
             udp_header_t *udpheader = (udp_header_t *)((u32)ethheader + l2headerlen + l3headerlen);
             sock_context_t *sockctx;
+			
             LIST_FOREACH_ELEMENT(sockctx, &valid_sock, list)
             {
                 ASSERT(sockctx->sock_recv != 0);
@@ -333,6 +374,7 @@ static void efproc(ethframe_t *ef)
         break;
     }
     default:
+		printk("invalid pkt type: %d\n", SWAP_2B(ethheader->ethtype));
         break;
     }
 }
@@ -345,24 +387,24 @@ int do_fbproc(void *param)
 
     while (1)
     {
-        if (CHECK_LIST_EMPTY(&rxef_list))
-        {
-            continue;
-        }
+		sem_wait(&rxef_sem, TIMEOUT_INFINIT);
 
-        /* kick out and process the each ef */
-        u32 flags;
-        raw_local_irq_save(flags);
-        first_ef = list_remove_head(&rxef_list);
-        raw_local_irq_restore(flags);
-
-        /* process the eth frame */
-        ef = GET_CONTAINER(first_ef, ethframe_t, e);
-        DEBUG("rx eth frame, len=%d\n", ef->len);
-        
-        efproc(ef);
-
-        page_free(ef);
+		while (!CHECK_LIST_EMPTY(&rxef_list))
+		{
+			/* kick out and process the each ef */
+			u32 flags;
+			raw_local_irq_save(flags);
+			first_ef = list_remove_head(&rxef_list);
+			raw_local_irq_restore(flags);
+			
+			/* process the eth frame */
+			ef = GET_CONTAINER(first_ef, ethframe_t, e);
+			DEBUG("rx eth frame, len=%d\n", ef->len);
+			
+			efproc(ef);
+			
+			page_free(ef);
+		}
     }
 
     /* never reach here */
@@ -376,6 +418,8 @@ void rxef_insert(ethframe_t *ef)
     raw_local_irq_save(flags);
     list_add_tail(&(ef->e),&rxef_list);
     raw_local_irq_restore(flags);
+
+	sem_signal(&rxef_sem);
 }
 
 /*  */
@@ -482,16 +526,17 @@ static void __init netproc_init(void)
         arpcache.list[count].valid = 0;
     }
     
-    ipaddr[0] = 220;
-    ipaddr[1] = 1;
-    ipaddr[2] = 1;
-    ipaddr[3] = 20;
+    ipaddr[0] = 192;
+    ipaddr[1] = 168;
+    ipaddr[2] = 3;
+    ipaddr[3] = 193;
 
     ipmask[0] = 255;
     ipmask[1] = 255;
     ipmask[2] = 255;
     ipmask[3] = 0;
 
+	sem_init(&rxef_sem, 1);
     /* this the ethframe proc task */
 	kernel_thread(do_fbproc, "net_proc", NULL);
 }

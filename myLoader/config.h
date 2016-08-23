@@ -87,6 +87,7 @@
 #define CONFIG_UDPCLI_HELLO_ACK     "i'm myloader."
 #define CONFIG_UDPCLI_BYE_REQ       "bye"
 #define CONFIG_UDPCLI_BYE_ACK       "bye"
+#define	CONFIG_NET_DEBUG_SWITCH		(1)
 
 
 #endif
