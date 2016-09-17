@@ -263,7 +263,7 @@ static vendor_device_t spt_vendev[] = {{PCI_VENDOR_ID_REALTEK, PCI_DEVICE_ID_REA
 static pci_drv_t realtek8139_drv = {
     .drvname = "realtek8139_drv",
     .vendev = spt_vendev,
-    .n_vendev = ARRAY_ELEMENT_SIZE(realtek8139_drv.vendev),
+    .n_vendev = ARRAY_ELEMENT_SIZE(spt_vendev),
     .pci_init = realtek8139_devinit,
 };
 

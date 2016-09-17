@@ -8,10 +8,12 @@
 #include "ml_string.h"
 #include "debug.h"
 #include "command.h"
+#include "task.h"
 
 /* some pci vendor device */
 #define PCI_VENDOR_ID_INTEL			0x8086
-#define PCI_DEVICE_ID_INTEL_E1000	0x100E
+#define PCI_DEVICE_ID_INTEL_82540EM	0x100E
+#define PCI_DEVICE_ID_INTEL_82545EM	0x100F
 
 static const u32 e1000_macaddr[2] = {0x5254, 0x00123456};
 
@@ -20,12 +22,26 @@ static const u32 e1000_macaddr[2] = {0x5254, 0x00123456};
 
 /* register list */
 #define E1000REG_CTRL				(0x0000)
+#define E1000REG_CTRL_LRST			(0x1 << 3)		/* link reset */
+#define E1000REG_CTRL_ASDE			(0x1 << 5)		/* autospeed detection enable */
+#define E1000REG_CTRL_SLU			(0x1 << 6)		/* set link up */
+#define E1000REG_CTRL_RST			(0x1 << 26)
+
+#define E1000REG_STATUS				(0x0008)
+#define E1000REG_STATUS_LU			(0x1 << 1)
+
 #define E1000REG_ICR				(0x00C0)
 #define E1000REG_IMS				(0x00D0)
 #define E1000REG_IMC				(0x00D8)
 
 /* receive control register */
 #define	E1000REG_RCTL				(0x100)
+#define	E1000REG_RCTL_EN			(0x1 << 1)		/* receiver enable */
+#define E1000REG_RCTL_SBP			(0x1 << 2)
+#define E1000REG_RCTL_UPE			(0x1 << 3)
+#define	E1000REG_RCTL_LPE			(0x1 << 5)		/* long packet enable */
+#define	E1000REG_RCTL_BAM			(0x1 << 15)		/* broadcast accept mode */
+#define E1000REG_RCTL_SECRC			(0x1 << 26)		/* Strip Ethernet CRC */
 
 /* transmit control register */
 #define	E1000REG_TCTL				(0x400)
@@ -43,6 +59,8 @@ static const u32 e1000_macaddr[2] = {0x5254, 0x00123456};
 #define E1000REG_TDLEN				(0x3808)
 #define	E1000REG_TDH				(0x3810)
 #define	E1000REG_TDT				(0x3818)
+
+#define E1000REG_MTA(i)				(0x5200 + (i) * 4)
 
 #define E1000REG_N_RA				(16)
 #define	E1000REG_RAL_BASS			(0x5400)
@@ -78,6 +96,9 @@ typedef struct e1000_txdesc {
 		} fields;
 	} upper;
 } e1000_txdesc_t;
+
+static struct pci_dev *dbg_e1000;
+
 
 /* E1000_REGIOPORT
  * 'IOADDR' register: io_bar + 0
@@ -169,21 +190,20 @@ static void intele1000_isr(struct pt_regs *regs, void *param)
 	{
 		u32 rdh = e1000_readR(dev, E1000REG_RDH);
 		u32	rdt = e1000_readR(dev, E1000REG_RDT);
-		while (rdt != rdh)
+		while (((rdt + 1) % (e1000->n_rxdesc)) != rdh)
 		{
-
 			/* receive a packet and insert in to the eh_proc */
 	        ethframe_t *new_ef;
+
+			rdt = (rdt + 1) % (e1000->n_rxdesc);
 
             new_ef = (ethframe_t *)page_alloc(BUDDY_RANK_4K, MMAREA_NORMAL);
             new_ef->netdev = e1000;
             new_ef->len = rdbuff[rdt].length;
-            new_ef->buf = new_ef->bufs + 128;
+            new_ef->buf = new_ef->bufs + 128;		/* reserve 128 Byte, used to packet head modify */
             memcpy(new_ef->buf, (void *)((u32)(rdbuff[rdt].buffaddr)), new_ef->len);
 
             rxef_insert(new_ef);
-
-			rdt = (rdt + 1) % (e1000->n_rxdesc);
 		}
 
 		e1000_writeR(dev, E1000REG_RDT, rdt);
@@ -257,7 +277,7 @@ static int intele1000_devinit(struct pci_dev *dev)
     u32 count;
     netdev_t *e1000 = (netdev_t *)(dev + 1);
 	u32 rdbuff = ((u32)e1000 + 511) & (~0x1FF);
-	u32 tdbuff = rdbuff + 256;
+	u32 tdbuff = rdbuff + 512;
     
     /* get the bar of I/O and bar of MEM */
     for (count = 0; count < ARRAY_ELEMENT_SIZE(dev->pcicfg.bar_mask); count++)
@@ -275,7 +295,7 @@ static int intele1000_devinit(struct pci_dev *dev)
         /* MEM BAR */
         else
         {
-#if 0
+#if 1
             dev->bar_mem = dev->pcicfg.u.cfg.baseaddr[count] &
 						   dev->pcicfg.bar_mask[count];
 			// printk("dev->bar_mem : 0x%#8x\n", dev->bar_mem);
@@ -297,8 +317,8 @@ static int intele1000_devinit(struct pci_dev *dev)
         }
     }
 
-	e1000->n_rxdesc = 16;		/* totally 16 receive descriptor */
-	e1000->n_txdesc = 16;
+	e1000->n_rxdesc = 32;		/* totally 16 receive descriptor */
+	e1000->n_txdesc = 32;
 	e1000->rd_bufsize = 2048;
 	e1000->td_bufsize = 2048;
 	e1000->rxdexc_ring = (void *)rdbuff;
@@ -313,14 +333,33 @@ static int intele1000_devinit(struct pci_dev *dev)
 
 	//
 	{
-	u32 ctrl_val = e1000_readR(dev, E1000REG_CTRL);
-	printk("e1000 init: ctrl 0x%#8x\n", ctrl_val);
-	ctrl_val &= ~(0x8);
-	e1000_writeR(dev, E1000REG_CTRL, ctrl_val);
+		u32 ctrl_val = e1000_readR(dev, E1000REG_CTRL);
+
+		/* global reset */
+		ctrl_val |= E1000REG_CTRL_RST;
+		e1000_writeR(dev, E1000REG_CTRL, ctrl_val);
+		wait_ms(10);
+		
+		ctrl_val &= ~(E1000REG_CTRL_LRST);
+		// ctrl_val |= E1000REG_CTRL_ASDE;
+		ctrl_val |= E1000REG_CTRL_SLU;
+		e1000_writeR(dev, E1000REG_CTRL, ctrl_val);
+
+		// while (!(e1000_readR(dev, E1000REG_STATUS) & E1000REG_STATUS_LU));
+
+		ctrl_val &= ~E1000REG_CTRL_ASDE;
+		// ctrl_val &= ~E1000REG_CTRL_SLU;
+		// e1000_writeR(dev, E1000REG_CTRL, ctrl_val);
 	}
 
+	for (count = 0; count < 128; count++)
+		e1000_writeR(dev, E1000REG_MTA(count), 0);
+
 	/* init the int mask */
-	e1000_writeR(dev, E1000REG_IMS, 0xCC);
+	e1000_writeR(dev, E1000REG_IMS, 0x1F6DC);
+
+	/* clean all int */
+	e1000_readR(dev, E1000REG_ICR);
 
     /* register the int */
     if (interrup_register(dev->pcicfg.u.cfg.intline, intele1000_isr, dev) != 0)
@@ -344,12 +383,12 @@ static int intele1000_devinit(struct pci_dev *dev)
 	/* receive descriptor config */
 	e1000_writeR(dev, E1000REG_RDBAL, rdbuff);		/* the rd buff should align to 16 byte */
 	e1000_writeR(dev, E1000REG_RDBAH, 0);
-	e1000_writeR(dev, E1000REG_RDLEN, 256);			/* the rd buff length should align to 128 byte */	
+	e1000_writeR(dev, E1000REG_RDLEN, e1000->n_rxdesc * 16);/* the rd buff length should align to 128 byte */	
 	e1000_writeR(dev, E1000REG_RDH, 0);				/* RD header */
-	e1000_writeR(dev, E1000REG_RDT, 0);				/* RD tailer */
+	e1000_writeR(dev, E1000REG_RDT, e1000->n_rxdesc);				/* RD tailer */
 
 	/* receive control register, start to receive */
-	e1000_writeR(dev, E1000REG_RCTL, 0x4008202);
+	e1000_writeR(dev, E1000REG_RCTL, 0x400802E);
 
 	/* transmit descriptor config */
 	e1000_writeR(dev, E1000REG_TDBAL, tdbuff);		/* the td buff should align to 16 byte */
@@ -360,17 +399,23 @@ static int intele1000_devinit(struct pci_dev *dev)
 	
 	/* transmit control register, start to transmit */
 	e1000_writeR(dev, E1000REG_TCTL, 0x4010a);
+
+	/* for debug */
+	dbg_e1000 = dev;
 	
 	return 0;
 }
 
 
-static vendor_device_t spt_vendev[] = {{PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_E1000},};
+static vendor_device_t spt_vendev[] = {
+	{PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82540EM},
+	{PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82545EM},
+};
 
 static pci_drv_t intele1000_drv = {
     .drvname = "intele1000_drv",
     .vendev = spt_vendev,
-    .n_vendev = ARRAY_ELEMENT_SIZE(intele1000_drv.vendev),
+    .n_vendev = ARRAY_ELEMENT_SIZE(spt_vendev),
     .pci_init = intele1000_devinit,
 };
 
@@ -384,7 +429,7 @@ static void __init intele1000init()
 
 module_init(intele1000init, 5);
 
-static void cmd_e1000stat_opfunc(char *argv[], int argc, void *param)
+static void cmd_e1000op_opfunc(char *argv[], int argc, void *param)
 {
     u32 count;
     if (argc == 1)
@@ -394,20 +439,47 @@ static void cmd_e1000stat_opfunc(char *argv[], int argc, void *param)
             if ((count % 4) == 0)
                 printk("\n");
         
-            printk("%2d-->%4d,    ", count + 1, e1000_intstat[count]);
+            printk("%2d-->%4d,    ", count, e1000_intstat[count]);
         }
         printk("\n");
     }
-    else
+    else if (argc == 3)
+    {
+		if (memcmp(argv[1], "-r", sizeof("-r")) != 0)
+		{
+			printk("invalid command.\n");
+			return;
+		}
+
+		u32 v, off = str2num(argv[2]);
+		v = e1000_readR(dbg_e1000, off);
+		printk("off 0x%#x: 0x%#x.\n", off, v);
+	}
+	else if (argc == 4)
+	{
+		if (memcmp(argv[1], "-w", sizeof("-w")) != 0)
+		{
+			printk("invalid command.\n");
+			return;
+		}
+
+		u32 v, off;
+		off = str2num(argv[2]);
+		v = str2num(argv[3]);
+		e1000_writeR(dbg_e1000, off, v);
+		printk("0x%#x --> off 0x%#x.\n", v, off);
+
+	}
+	else
     {
         printk("invalid command.\n");
     }
 }
 
-struct command cmd_e1000stat _SECTION_(.array.cmd) =
+struct command cmd_e1000op _SECTION_(.array.cmd) =
 {
-    .cmd_name   = "e1000stat",
-    .info       = "e1000 statistic.",
-    .op_func    = cmd_e1000stat_opfunc,
+    .cmd_name   = "e1000op",
+    .info       = "e1000 operation.e1000op, -r off, -w off value",
+    .op_func    = cmd_e1000op_opfunc,
 };
 

@@ -24,7 +24,7 @@ static vendor_device_t spt_vendev[] = {{PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_PCN
 static pci_drv_t amdpcnet_drv = {
     .drvname = "amdpcnet_drv",
     .vendev = spt_vendev,
-    .n_vendev = ARRAY_ELEMENT_SIZE(amdpcnet_drv.vendev),
+    .n_vendev = ARRAY_ELEMENT_SIZE(spt_vendev),
     .pci_init = amdpcnet_devinit,
 };
 

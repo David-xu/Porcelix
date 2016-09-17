@@ -21,7 +21,7 @@ int read1sym(FILE *in, symdesc_t *sym)
 	rc = fscanf(in, "%x %c %255s\n", &(sym->addr), &type, str);
 	if (rc != 3)
 	{
-		fscanf(in, "%c %255s\n", &type, str);
+		rc = fscanf(in, "%c %255s\n", &type, str);
 		sym->addr = 0;
 	}
 

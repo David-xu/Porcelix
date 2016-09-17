@@ -82,6 +82,7 @@
 /******************************************************************************
  *                           Used for net                                     *
  ******************************************************************************/
+#define NET_DBG_SWITCH				(0)
 #define CONFIG_UDPCLI_DEFAULTPORT   (7788)
 #define CONFIG_UDPCLI_HELLO_REQ     "hello"
 #define CONFIG_UDPCLI_HELLO_ACK     "i'm myloader."

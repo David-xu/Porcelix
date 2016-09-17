@@ -21,6 +21,30 @@ static LIST_HEAD(valid_sock);
 /* L2 */
 static arpcache_t arpcache = {.count = 0, .listsize = 32};
 
+typedef enum _net_stat_type {
+	net_st_total_rcv = 0,
+	net_st_ipv4_chksum_err,
+	net_st_icmp_chksum_err,
+	net_st_num
+} net_stat_type_e;
+
+
+static struct {
+	char	*name;
+	u32		num;
+} net_stat[net_st_num] = {
+	[net_st_total_rcv].name = "total_rcv",
+	[net_st_ipv4_chksum_err].name = "ipv4_chksum_err",
+	[net_st_icmp_chksum_err].name = "icmp_chksum_err",
+};
+
+static void net_dbg_stat(void)
+{
+	u32 i;
+	for (i = 0; i < net_st_num; i++)
+		printk("%s :\t\t%d\n", net_stat[i].name, net_stat[i].num);
+}
+
 int arp_insert(u8 *ipaddr, u8 *macaddr)
 {
     ASSERT(ipaddr != 0);
@@ -87,7 +111,7 @@ static u8   ipaddr[4];
 static u8   ipmask[4];
 const static u8     ipaddr_any[4] = {0, 0, 0, 0};
 
-u16 checksum(u32 cksum, void *pBuffer, u16 len)
+u16 checksum_calc(u32 cksum, void *pBuffer, u16 len)
 {
     u8 num = 0;
     u8 *p = (u8 *)pBuffer;
@@ -99,7 +123,7 @@ u16 checksum(u32 cksum, void *pBuffer, u16 len)
    
     while (len > 1)
     {
-        cksum += ((u16)p[num] << 8 & 0xff00) | ((u16)p[num + 1] & 0x00FF);
+        cksum += (((u16)p[num] << 8) & 0xff00) | ((u16)p[num + 1] & 0x00FF);
         len   -= 2;
         num   += 2;
     }
@@ -203,28 +227,37 @@ void ethii_macswap(ethii_header_t *ethheader)
 
 static u32 efdump_flag = 0;
 
-static void cmd_efdump_opfunc(char *argv[], int argc, void *param)
+static void cmd_netdbg_opfunc(char *argv[], int argc, void *param)
 {
 	if (argc == 1)
-		efdump_flag = 1;
+	{
+		net_dbg_stat();
+	}
 	else
 	{
-		if (argc == 2)
+		if (strcmp(argv[1], "-dump") == 0)
 		{
-			efdump_flag = str2num(argv[1]);
+			if (argc == 3)
+			{
+				efdump_flag = str2num(argv[2]);
+			}
+			else
+			{
+				efdump_flag = 1;
+			}
 		}
 		else
 		{
-
+			printk("invalid param.\n");
 		}
 	}
 }
 
-struct command cmd_efdump _SECTION_(.array.cmd) =
+struct command cmd_netdbg _SECTION_(.array.cmd) =
 {
-    .cmd_name   = "efdump",
-    .info       = "ethframe dump",
-    .op_func    = cmd_efdump_opfunc,
+    .cmd_name   = "netdbg",
+    .info       = "netdbg ,-dump [n].",
+    .op_func    = cmd_netdbg_opfunc,
 };
 
 
@@ -238,6 +271,7 @@ static void efproc(ethframe_t *ef)
 	if (efdump_flag)
 	{
 		efdump_flag--;
+		printk("efproc dump packet:\n");
 		dump_ram(ef->buf, ef->len);
 	}
 #endif
@@ -246,7 +280,7 @@ static void efproc(ethframe_t *ef)
     if (SWAP_2B(ethheader->ethtype) == L2TYPE_8021Q)
     {
         /* now we don't support 802.1q */
-		printk("802.1q, drop.\n");
+		DEBUG_NET("802.1q, drop.\n");
         return;
     }
     
@@ -293,9 +327,10 @@ static void efproc(ethframe_t *ef)
         /* check the ipv4 header checksum */
         l3headerlen = ipv4header->headerlen * 4;
         l4len = getipv4totallen(ipv4header) - l3headerlen;
-        if (0 != checksum(0, ipv4header, l3headerlen))
+        if (0 != checksum_calc(0, ipv4header, l3headerlen))
         {
-        	printk("ipv4 checksum err.\n");
+        	DEBUG_NET("ipv4 checksum err.\n");
+			net_stat[net_st_ipv4_chksum_err].num++;
             return;
         }
 
@@ -304,13 +339,22 @@ static void efproc(ethframe_t *ef)
         case IPV4PROTOCOL_ICMP:
         {
             icmp_header_t *icmpheader = (icmp_header_t *)((u32)ethheader + l2headerlen + l3headerlen);
-            if (icmpheader->type == ICMPTYPE_ECHOREQ)
+
+			if (checksum_calc(0, icmpheader, l4len) != 0)
+			{
+				DEBUG_NET("icmp checksum err.\n");
+				net_stat[net_st_icmp_chksum_err].num++;
+				return;
+			}
+
+			if (icmpheader->type == ICMPTYPE_ECHOREQ)
             {
                 /* let's save the arp info */
                 arp_insert(ipv4header->src_ip, ethheader->srcaddr);
 
                 icmpheader->type = ICMPTYPE_ECHOACK;
-                cksum = checksum(0, icmpheader, l4len);
+				icmpheader->checksum_h8 = icmpheader->checksum_l8 = 0;
+                cksum = checksum_calc(0, icmpheader, l4len);
                 icmpheader->checksum_h8 = cksum >> 8;
                 icmpheader->checksum_l8 = cksum & 0xFF;
 
@@ -318,7 +362,6 @@ static void efproc(ethframe_t *ef)
                 ethii_macswap(ethheader);
 
                 ef->netdev->tx(ef->netdev, ethheader, ef->len);
-				printk("icmp after tx\n");
             }
             break;
         }
@@ -366,15 +409,14 @@ static void efproc(ethframe_t *ef)
         }
         default:
             /* the protocol we don't support */
-			printk("IPv4 unknow protocol:0x%#4x\n", ipv4header->protocol);
-			dump_ram(ef->buf, ef->len);
+			DEBUG_NET("IPv4 unknow protocol:0x%#4x\n", ipv4header->protocol);
             break;
         }
 
         break;
     }
     default:
-		printk("invalid pkt type: %d\n", SWAP_2B(ethheader->ethtype));
+		DEBUG_NET("invalid eth type: 0x%#4x\n", SWAP_2B(ethheader->ethtype));
         break;
     }
 }
@@ -400,6 +442,7 @@ int do_fbproc(void *param)
 			/* process the eth frame */
 			ef = GET_CONTAINER(first_ef, ethframe_t, e);
 			DEBUG("rx eth frame, len=%d\n", ef->len);
+			net_stat[net_st_total_rcv].num++;
 			
 			efproc(ef);
 			
@@ -464,7 +507,7 @@ int udp_send(sock_context_t *sockctx, void *buff, u16 len)
     pseudoupd->len_h = pseudoupd->udpheader.len_h;
     pseudoupd->len_l = pseudoupd->udpheader.len_l;
 
-    cksum = checksum(0, pseudoupd, len + sizeof(upd_pseudoheader_t) - sizeof(udp_header_t));
+    cksum = checksum_calc(0, pseudoupd, len + sizeof(upd_pseudoheader_t) - sizeof(udp_header_t));
     pseudoupd->udpheader.cksum_h = (u8)(cksum >> 8);
     pseudoupd->udpheader.cksum_l = (u8)(cksum >> 0);
 
@@ -492,7 +535,7 @@ int udp_send(sock_context_t *sockctx, void *buff, u16 len)
     memcpy(ipheader->src_ip, sockctx->localip, 4);
     memcpy(ipheader->dst_ip, sockctx->destip, 4);
 
-    cksum = checksum(0, ipheader, 20);
+    cksum = checksum_calc(0, ipheader, 20);
     ipheader->checksum_h8 = (u8)(cksum >> 8);
     ipheader->checksum_l8 = (u8)(cksum >> 0);
 

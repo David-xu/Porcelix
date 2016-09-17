@@ -155,7 +155,7 @@ int sockctx_register(sock_context_t *sockctx);
 
 int udp_send(sock_context_t *sockctx, void *buff, u16 len);
 
-u16 checksum(u32 cksum, void *pBuffer, u16 len);
+u16 checksum_calc(u32 cksum, void *pBuffer, u16 len);
 void ipv4header_dump(ipv4_header_t *ipv4header);
 u16 getipv4totallen(ipv4_header_t *ipv4header);
 void udpheader_dump(udp_header_t *udpheader);
