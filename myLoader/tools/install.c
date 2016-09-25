@@ -141,6 +141,7 @@ int main(int argc, char *argv[])
     bootp->bootsectflag = 0xAA55;
 
 	bootp->core_lba = ((unsigned long)dstpos - (unsigned long)sys) / 512 + core_off;
+	printf("core lba: 0x%08x\n", bootp->core_lba);
 
 	/* copy the core.bin */
     memcpy((void *)((unsigned long)dstpos + 512 * core_off), core, core_size);

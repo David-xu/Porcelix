@@ -1,4 +1,4 @@
-ENTRY(core_entry)
+ENTRY(core_entry)			/* boot.bin use this address by readelf */
 
 PHDRS
 {

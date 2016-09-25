@@ -36,7 +36,51 @@ test_flag:
 	/* save the boot device */
 	movb	%dl, boot_dev
 
+	movb	%dl, %al
+	shrw	$0x4, %ax
+	movw	$0, %dx
+	call	print_ch
+
+	movb	$0xc, %al
+	movw	$0x0001, %dx
+	call	print_ch
+
 	jmp	$0x7c0, $bootc_entry
+
+/*
+ * print char
+ * al: char
+ * dx: position
+ */
+print_ch:
+	pusha
+	pushw	%es
+	andw	$0xf, %ax
+	movw	$0xa, %bx
+	cmpw	%bx, %ax
+	jb		print_ch_ba
+	addw	$0x7, %ax
+print_ch_ba:
+	addw	$0x30, %ax
+	pushw	%ax
+	movw	%sp, %bp
+	movw	%ss, %ax
+	movw	%ax, %es
+	movw	$0x1301, %ax
+	movw	$0x0002, %bx
+	movw	$0x1, %cx
+	int		$0x10
+	popw	%ax
+	popw	%ax
+	movw	%ax, %es
+	popa
+	ret
+
+/*
+ * ax
+ */
+print_hexc:
+	
 
 #if 0
 struct    DiskAddressPacket {

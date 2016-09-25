@@ -38,9 +38,22 @@ mov		%cs, %ax
 mov		%ax, %ds
 mov		%ax, %es
 
+	movw	$0x1301, %ax
+	movw	$0x0002, %bx
+	movw	len, %cx
+	movw	$0x0, %dx
+	movw	$msgstr, %bp
+	
+	int		$0x10
+
 .global corestart_16c
 
 jmp		corestart_16c
+
+msgstr:
+	.ascii	"jump to corestart_16c ..."
+len:
+	.int	. - msgstr
 
 swith2realmode_1:
 movw	$REALMODE_DS, %ax

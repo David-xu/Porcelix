@@ -50,9 +50,9 @@ void bootc_entry(void)
 	n_sect = bp->n_sect;
 	while (n_sect)
 	{
-		if (n_sect > 32)
+		if (n_sect > 16)
 		{
-			cn = 32;
+			cn = 16;
 		}
 		else
 		{
@@ -63,7 +63,7 @@ void bootc_entry(void)
 		else
 			da.BlockCount = (cn + 3) / 4;
 
-		da.BufferAddr = ((coreaddr & 0xFFFF0000) << 12) | (coreaddr & 0xFFFF);
+		da.BufferAddr = ((coreaddr & 0x000FFFF0) << 12) | (coreaddr & 0xF);
 		
 		/* int 0x13 ah=0x42 */
 		__asm__ __volatile__ (

@@ -68,6 +68,33 @@ static inline u8 inb_16(u16 port)
 	return v;
 }
 
+/*
+ * diplay string
+ * int 0x10, AH = 0x13
+ * AH		0x13
+ * AL		write mode		(0x01)
+ * BH		page number
+ * BL		color
+ * CX		string len
+ * DH:DL	row:column
+ * ES:BP	offset of string
+ */
+
+static void _SECTION_(.init.text) print_16(void *buff, u16 len, u16 color, u16 row, u16 column)
+{
+	u16 dx = (row << 8) | column;
+	u16 bp = (u16)(u32)buff;
+	/* ds:si--->es:di */
+	__asm__ __volatile__ (
+		"movw	%3, %%bp		\n\t"
+		"movw	$0x1301, %%ax	\n\t"
+		"int	$0x10			\n\t"
+		:
+		: "d"(dx), "c"(len), "b"(color), "a"(bp)
+		: "memory"
+	);
+}
+
 /* read until the 8042's buff get empty
    I just copy the code from the linux kernel :) */
 #define MAX_8042_LOOPS__	100000
@@ -129,7 +156,10 @@ void _SECTION_(.init.text) corestart_16c(void)
 {
 	u32 coresize, cs;
 	u32 dstaddr = 0x1000, srcaddr = IMGCORE_LOADADDR + 0x1000;
-
+#if 0
+	const u8 str1[] = "corestart_16c()\n";
+	print_16((void *)str1, sizeof(str1), 2, 1, 0);
+#endif
 	/* step 1: get some info from boot.bin, the first 512B */
 	move_16(IMGCORE_LOADADDR + (u32)(&bootparam),
 			(BOOTPARAM_PACKADDR_BASS << 4) | BOOTPARAM_PACKADDR_OFFSET,
