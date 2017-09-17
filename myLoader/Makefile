@@ -4,6 +4,7 @@ LD := ld
 DD := dd
 OBJCOPY := objcopy
 CC := gcc
+CUR_DATE:=\"$(shell date +%Y%m%d_%H%M%S)\"
 
 # CORESRC_DIR := $(CURDIR)/core
 # IOSRC_DIR := $(CURDIR)/io
@@ -39,7 +40,7 @@ obj := $(src_c:.c=.o) $(src_S:.S=.o)
 # -fno-builtin 不使用内建函数 否则无法编译名称为printf memcpy memset等等会被自动识别为内建函数的名称
 # -fno-optimize-sibling-calls 关闭了gcc对尾递归调用的优化，gcc的尾递归调用优化就是用jmp替换call 这样一来就导致调用栈信息缺失了，所以我们暂时关闭了这个优化来方便调试
 ASFLAGS = -I$(CURDIR) -Iinclude -fno-common -m32
-CFLAGS = -Wall -O2 -I$(CURDIR) -Iinclude -fno-stack-protector -fno-builtin -fno-strict-aliasing -fno-common -fno-optimize-sibling-calls -march=i386 -m32 -D__MLD__ -DMLD_DATE=\"$(shell date +%Y%m%d_%H%M%S)\"
+CFLAGS = -Wall -O2 -I$(CURDIR) -Iinclude -fno-stack-protector -fno-builtin -fno-strict-aliasing -fno-common -fno-optimize-sibling-calls -march=i386 -m32 -D__MLD__ -DMLD_DATE=$(CUR_DATE)
 LDFLAGS = 
 
 # the target
@@ -98,7 +99,7 @@ install_iso:
 	mkdir ../mkiso
 	dd if=./boot/boot.bin of=../mkiso/img bs=512 count=1
 	dd if=./core.bin of=../mkiso/img bs=512 seek=4 conv=notrunc
-	mkisofs -R -J -b img -no-emul-boot -o $(DESTISO_DIR) ../mkiso
+	mkisofs -R -J -b img -no-emul-boot -boot-load-size 4 -o $(DESTISO_DIR) ../mkiso
 	./tools/install $(DESTISO_DIR) boot/boot.bin core.bin -iso
 
 install_sdb:

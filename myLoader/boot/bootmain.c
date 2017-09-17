@@ -12,7 +12,7 @@ struct DiskAddressPacket {
 	u8 PacketSize;				/* 16 byte, this struct size, fixed */
 	u8 Reserved;
 	u16 BlockCount;				/* sect num need to transform */
-	 
+
 	u32 BufferAddr;				/* (segment:offset) */
 	u64 BlockNum;				/* start LBA */
 }__attribute__((packed));
@@ -26,7 +26,7 @@ struct DiskAddressPacket volatile da =
 };
 
 void bootc_entry () __attribute__ ((noreturn));
-
+#if 1
 void bootc_entry(void)
 {
 	u32 coreaddr = IMGCORE_LOADADDR + 0x1000;
@@ -36,14 +36,6 @@ void bootc_entry(void)
 		da.BlockNum = bp->core_lba;
 	else
 		da.BlockNum = bp->core_lba / 4;
-
-	/* save the boot_dev id, which is in dl now */
-#if 0
-    __asm__ __volatile__ (
-    	"mov	%%dl, %0		\n\t"
-    	:"=m"(bp->boot_dev)
-	);
-#endif
 
     /* we want to load the core.bin
        addr: IMGCORE_LOADADDR_BASE:IMGCORE_LOADADDR_OFFSET */
@@ -63,8 +55,9 @@ void bootc_entry(void)
 		else
 			da.BlockCount = (cn + 3) / 4;
 
-		da.BufferAddr = ((coreaddr & 0x000FFFF0) << 12) | (coreaddr & 0xF);
-		
+		// da.BufferAddr = ((coreaddr & 0x000FFFF0) << 12) | (coreaddr & 0xF);
+		da.BufferAddr = ((coreaddr & 0xFFFF0000) << 12) | (coreaddr & 0xFFFF);
+
 		/* int 0x13 ah=0x42 */
 		__asm__ __volatile__ (
 			"pusha					\n\t"
@@ -100,4 +93,5 @@ void bootc_entry(void)
 	/* make compiler happy */
 	while(1);
 }
+#endif
 

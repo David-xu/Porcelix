@@ -31,36 +31,71 @@ test_flag:
 	movw	%ax, %ds
 	movw	%ax, %es
 
-	/*sti		/* we're safe again */
+	sti		/* we're safe again */
 
 	/* save the boot device */
 	movb	%dl, boot_dev
+	// movb	%dl, %al
+	// call	print_hex
+	/* goto main boot entry */
+	jmp	$0x7c0, $bootc_entry
 
+	/* test: int0x13 ah0x42 */
+#if 0
+	pushw	$0x0010
+	pushw	$0x1
+	/* buff addr seg:off */
+	pushw	%ss
+	pushw	$0
+	/* start lba */
+	pushw	$0
+	pushw	$0
+	pushw	$0
+	pushw	$0x22
+	movw	%ss, %ax
+	movw	%ax, %ds
+	movw	%sp, %si
+2:
+	movw	$0x42, %ax
+	int		$0x13
+
+	pushf
+	popw	%ax
+	call	print_ch
+	
+	jc		2b
+	
+3:
+	jmp		3b
 	movb	%dl, %al
 	shrw	$0x4, %ax
-	movw	$0, %dx
 	call	print_ch
 
 	movb	$0xc, %al
-	movw	$0x0001, %dx
 	call	print_ch
-
-	jmp	$0x7c0, $bootc_entry
-
+#endif
 /*
  * print char
  * al: char
- * dx: position
  */
-print_ch:
+.global print_hex
+print_hex:
+	pushw	%ax
+	shrw	$4, %ax
+	call	print_hex_
+	popw	%ax
+	call	print_hex_
+	ret
+
+print_hex_:
 	pusha
 	pushw	%es
 	andw	$0xf, %ax
 	movw	$0xa, %bx
 	cmpw	%bx, %ax
-	jb		print_ch_ba
+	jb		print_hex_ba
 	addw	$0x7, %ax
-print_ch_ba:
+print_hex_ba:
 	addw	$0x30, %ax
 	pushw	%ax
 	movw	%sp, %bp
@@ -69,6 +104,11 @@ print_ch_ba:
 	movw	$0x1301, %ax
 	movw	$0x0002, %bx
 	movw	$0x1, %cx
+	
+	movw	print_pos_x, %dx
+	addw	$1, %dx
+	movw	%dx, print_pos_x
+	
 	int		$0x10
 	popw	%ax
 	popw	%ax
@@ -76,11 +116,12 @@ print_ch_ba:
 	popa
 	ret
 
-/*
- * ax
- */
-print_hexc:
+print_pos_x:
+	.word	0
 	
+
+
+
 
 #if 0
 struct    DiskAddressPacket {

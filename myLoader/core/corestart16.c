@@ -84,11 +84,12 @@ static void _SECTION_(.init.text) print_16(void *buff, u16 len, u16 color, u16 r
 {
 	u16 dx = (row << 8) | column;
 	u16 bp = (u16)(u32)buff;
-	/* ds:si--->es:di */
 	__asm__ __volatile__ (
+		"pushw	%%bp			\n\t"
 		"movw	%3, %%bp		\n\t"
 		"movw	$0x1301, %%ax	\n\t"
 		"int	$0x10			\n\t"
+		"popw	%%bp			\n\t"
 		:
 		: "d"(dx), "c"(len), "b"(color), "a"(bp)
 		: "memory"
@@ -196,7 +197,7 @@ void _SECTION_(.init.text) corestart_16c(void)
 		"mov	%%dx, 6(%%di)	\n\t"
 		"pop	%%ds			\n\t"
 		"popa					\n\t"
-		
+
 		:
 		:"a"((IMGCORE_LOADADDR + (u32)(&raminfo_buf)) >> 4),
 		 "D"((IMGCORE_LOADADDR + (u32)(&raminfo_buf)) & 0xF)
