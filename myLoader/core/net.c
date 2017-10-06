@@ -115,30 +115,30 @@ u16 checksum_calc(u32 cksum, void *pBuffer, u16 len)
 {
     u8 num = 0;
     u8 *p = (u8 *)pBuffer;
- 
+
     if ((NULL == p) || (0 == len))
     {
         return cksum;
     }
-   
+
     while (len > 1)
     {
         cksum += (((u16)p[num] << 8) & 0xff00) | ((u16)p[num + 1] & 0x00FF);
         len   -= 2;
         num   += 2;
     }
-   
+
     if (len > 0)
     {
         cksum += ((u16)p[num] << 8) & 0xFFFF;
         num += 1;
     }
- 
+
     while (cksum >> 16)
     {
         cksum = (cksum & 0xFFFF) + (cksum >> 16);
     }
-   
+
     return ~cksum;
 }
 
@@ -225,6 +225,7 @@ void ethii_macswap(ethii_header_t *ethheader)
 
 }
 
+#ifdef NET_DBG_SWITCH
 static u32 efdump_flag = 0;
 
 static void cmd_netdbg_opfunc(char *argv[], int argc, void *param)
@@ -259,7 +260,7 @@ struct command cmd_netdbg _SECTION_(.array.cmd) =
     .info       = "netdbg ,-dump [n].",
     .op_func    = cmd_netdbg_opfunc,
 };
-
+#endif
 
 static void efproc(ethframe_t *ef)
 {
@@ -267,7 +268,7 @@ static void efproc(ethframe_t *ef)
     u16 l2headerlen = sizeof(ethii_header_t);
     u16 l3headerlen;
 
-#if CONFIG_NET_DEBUG_SWITCH
+#if NET_DBG_SWITCH
 	if (efdump_flag)
 	{
 		efdump_flag--;
@@ -283,7 +284,7 @@ static void efproc(ethframe_t *ef)
 		DEBUG_NET("802.1q, drop.\n");
         return;
     }
-    
+
     switch (SWAP_2B(ethheader->ethtype))
     {
     case L2TYPE_ARP:
@@ -296,7 +297,7 @@ static void efproc(ethframe_t *ef)
             {
                 break;
             }
-            
+
             /* let's save the arp info */
             arp_insert(arpheader->src_ipaddr, arpheader->src_macaddr);
 
@@ -369,14 +370,14 @@ static void efproc(ethframe_t *ef)
         {
             udp_header_t *udpheader = (udp_header_t *)((u32)ethheader + l2headerlen + l3headerlen);
             sock_context_t *sockctx;
-			
+
             LIST_FOREACH_ELEMENT(sockctx, &valid_sock, list)
             {
                 ASSERT(sockctx->sock_recv != 0);
 
                 if (sockctx->protocol != IPV4PROTOCOL_UDP)
                     continue;
-            
+
                 /* check port */
                 if ((sockctx->localport != PORT_ALL) &&
                     (sockctx->localport != getudp_dstport(udpheader)))
@@ -438,14 +439,14 @@ int do_fbproc(void *param)
 			raw_local_irq_save(flags);
 			first_ef = list_remove_head(&rxef_list);
 			raw_local_irq_restore(flags);
-			
+
 			/* process the eth frame */
 			ef = GET_CONTAINER(first_ef, ethframe_t, e);
 			DEBUG("rx eth frame, len=%d\n", ef->len);
 			net_stat[net_st_total_rcv].num++;
-			
+
 			efproc(ef);
-			
+
 			page_free(ef);
 		}
     }
@@ -563,15 +564,15 @@ int udp_send(sock_context_t *sockctx, void *buff, u16 len)
 static void __init netproc_init(void)
 {
     u32 count;
-    
+
     for (count = 0; count < arpcache.listsize; count++)
     {
         arpcache.list[count].valid = 0;
     }
-    
+
     ipaddr[0] = 192;
     ipaddr[1] = 168;
-    ipaddr[2] = 3;
+    ipaddr[2] = 46;
     ipaddr[3] = 193;
 
     ipmask[0] = 255;

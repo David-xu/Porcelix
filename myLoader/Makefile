@@ -20,7 +20,7 @@ bootobj := $(bootsrc_c:.c=.o) $(bootsrc_S:.S=.o)
 # all of the '.c' source file
 src_c := core/corestart16.c core/main.c core/cmdlist.c core/module.c 	\
 	core/net.c core/func.c core/task.c core/syscall.c	core/timer.c	\
-	core/sem.c															\
+	core/sem.c core/linux_loader.c										\
 	drv/pci/core.c drv/pci/rtl8139.c drv/pci/e1000.c drv/pci/pcnet32.c	\
 	io/disp.c io/interrupt.c io/kbd.c io/hd.c						\
 	mm/memory.c mm/page.c mm/slab.c									\

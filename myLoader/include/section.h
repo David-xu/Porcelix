@@ -10,7 +10,7 @@
 
 #define __weak	__attribute__((weak))
 
-/*  */
+/* 默认从寄存器传递3个参数 顺序是eax edx ecx */
 #define asmlinkage      __attribute__((regparm(3)))
 
 /*

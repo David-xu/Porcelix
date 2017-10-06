@@ -22,7 +22,7 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
         ((argc == 2) && (memcmp("-a", argv[1], sizeof("-a")) == 0)))
     {
         printk("PCI bus enumeration begin...\n");
-        
+
         for (bus = 0; bus < PCI_BUS_COUNT; bus++)
             for (dev = 0; dev < PCI_DEV_COUNT; dev++)
                 for (func = 0; func < PCI_FUNC_COUNT; func++)
@@ -31,7 +31,7 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
 					if ((pcicfg.u.cfg.vendor == 0x15ad) &&
 						(pcicfg.u.cfg.device == 0x7a0))
 						continue;
-                    
+
                     if (pcicfg.u.cfg.vendor != PCI_INVALID_VENDORID)
                     {
                         printk("bus:%2d dev:%2x func:%x ---> Vendor ID:%4x, Device ID:%4x.\n",
@@ -49,7 +49,7 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
             for (func = 0; func < PCI_FUNC_COUNT; func++)
             {
                 getpciinfo(bus, dev, func, &pcicfg);
-            
+
                 if (pcicfg.u.cfg.vendor != PCI_INVALID_VENDORID)
                 {
                     printk("bus:%2d dev:%2x func:%x ---> Vendor ID:%4x, Device ID:%4x.\n",
@@ -71,7 +71,7 @@ static void cmd_dispci_opfunc(char *argv[], int argc, void *param)
         func = str2num(argv[4]);
 
         getpciinfo(bus, dev, func, &pcicfg);
-        
+
         if ((pcicfg.u.cfg.vendor) == PCI_INVALID_VENDORID)
         {
             printk("Device (%d) with func (%d) on bus (%d) dosn't exist.\n", dev, func, bus);
@@ -126,6 +126,28 @@ int pcidrv_register(pci_drv_t *drv)
     return 0;
 }
 
+int pcicfg_readw(pci_dev_t *pcidev, u32 off, u16 *val)
+{
+    u32 cfgword;
+
+    cfgword = PCI_MAKE_CFGWORD(pcidev->pcicfg.bus, pcidev->pcicfg.dev, pcidev->pcicfg.func);
+    outl(cfgword + off, PCI_CONFIG_ADDRESS);
+    *val = inl(PCI_DATA_ADDRESS);
+
+	return 0;
+}
+
+int pcicfg_writew(pci_dev_t *pcidev, u32 off, u16 val)
+{
+    u32 cfgword;
+
+    cfgword = PCI_MAKE_CFGWORD(pcidev->pcicfg.bus, pcidev->pcicfg.dev, pcidev->pcicfg.func);
+    outl(cfgword + off, PCI_CONFIG_ADDRESS);
+	outw(val, PCI_DATA_ADDRESS);
+
+	return 0;
+}
+
 int pcidev_register(pci_dev_t *pcidev)
 {
     pci_dev_t *p;
@@ -145,7 +167,7 @@ int pcidev_register(pci_dev_t *pcidev)
 void getpciinfo(u32 bus, u32 dev, u32 func, pcicfgdata_t *pcicfg)
 {
     u32 count, cfgword, val;
-    
+
     cfgword = PCI_MAKE_CFGWORD(bus, dev, func);
     outl(cfgword, PCI_CONFIG_ADDRESS);
     val = inl(PCI_DATA_ADDRESS);
@@ -213,13 +235,13 @@ void pci_init(void)
                 /* new device, cause the space after pci_dev_t in this page, we used it
                  * so we need to page_alloc
 				 */
-                pcinewdev = (pci_dev_t *)page_alloc(BUDDY_RANK_4K, MMAREA_LOW1M);
-                
+                pcinewdev = (pci_dev_t *)page_alloc(BUDDY_RANK_4K, MMAREA_LOW1M | PAF_ZERO);
+
                 /* copy the pci config data into the device struct */
                 memcpy(&(pcinewdev->pcicfg), &pcicfg, sizeof(pcinewdev->pcicfg));
                 /* copy the bus dev func */
 
-                /* try to find one proper driver */                
+                /* try to find one proper driver */
                 LIST_FOREACH_ELEMENT(pcidrv, &pcidrvlist, drvlist)
                 {
                     for (count = 0; count < pcidrv->n_vendev; count++)
@@ -240,7 +262,7 @@ void pci_init(void)
                         }
                     }
                 }
-                
+
                 /* release the page */
                 page_free(pcinewdev);
                 continue;

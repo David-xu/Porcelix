@@ -109,7 +109,7 @@ void hd_int(struct pt_regs *regs, void *param)
  * partition logicsector idx to the CHS.
  * This functions need to know the harddisc infomation
  * which stored in the 'dev->driver->drv_param'
- * And the partition information 
+ * And the partition information
  * which stored in the 'dev->dev_param'
  */
 static void hd_partsec2chs(device_t *dev, struct hd_request *rq, u32 part_logicsect)
@@ -118,7 +118,7 @@ static void hd_partsec2chs(device_t *dev, struct hd_request *rq, u32 part_logics
     struct hd_dptentry *partition = (struct hd_dptentry *)(dev->dev_param);
     u32 logicsect = part_logicsect + partition->start_logicsect;
     u32 sectpercyl = ((u32)hdinfo->n_header) * hdinfo->n_sect;
-    
+
     rq->cyl_start = logicsect / sectpercyl;
     logicsect = logicsect % sectpercyl;
     rq->head_start = logicsect / (hdinfo->n_sect);
@@ -288,7 +288,7 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
                "-m [part]: mount or display mount partition.\n");
         return;
     }
-    
+
     /* show all the partition status */
     if (memcmp(argv[1], "-d", strlen("-d")) == 0)
     {
@@ -333,13 +333,13 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
                 return;
             }
             struct partition_desc *dstpart = &(hdpart_desc[dstpartidx]);
-            
+
             /* if the partition has been mounted, we need to umount first. */
             if (dstpart->fs != NULL)
             {
                 dstpart->fs->fs_unmount(dstpart->fs, dstpart);
             }
-            
+
             /* try to mount the dest partion */
             for (i = 0; i < n_supportfs; i++)
             {
@@ -356,7 +356,7 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
                     return;
                 }
             }
-            
+
             printk("HD(0,%d) mounted failed.\n", dstpartidx);
         }
     }
@@ -383,7 +383,7 @@ static void cmd_hdop_opfunc(char *argv[], int argc, void *param)
             printk("HD(0,%d) hasn't been mounted.\n", dstpartidx);
             return;
         }
-        
+
         cursel_partition = hdpart_desc + dstpartidx;
     }
     /* read one sector */
@@ -471,7 +471,7 @@ device_t *gethd_dev(u8 part)
     {
         return &hd1_wholehd_dev;
     }
-    
+
     return &(hd0_logicpart_devlist[part]);
 }
 
@@ -500,7 +500,7 @@ static void __init hd_init(void)
 
 	/* harddisk interrupt */
 	interrup_register(X86_VECTOR_IRQ_2E - X86_VECTOR_IRQ_20,
-					  hd_int, NULL);    
+					  hd_int, NULL);
     u32 i;
     for (i = 0; i < HD_PDTENTRY_NUM; i++)
     {
@@ -510,6 +510,6 @@ static void __init hd_init(void)
 	hd_readpdt();
 }
 
-module_init(hd_init, 2);
+// module_init(hd_init, 2);
 
 

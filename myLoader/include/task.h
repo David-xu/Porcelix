@@ -60,7 +60,7 @@ typedef struct _task {
 
 	/* 调度相关 */
 	int		pri, pri_init;		/* 初始优先级 */
-	u32		slice, slice_init;
+	u32		slice, slice_init, total_tick;
 	struct list_head q;			/* link this task desc into q */
 	wait_task_t		wait;		/* 链入wait_queue_t 当task挂起时用到 */
 } task_t;

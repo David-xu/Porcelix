@@ -53,6 +53,7 @@ movl	$0xe000, %esp
 /* we need to add this 'operand-size override' prefix before this call, because the .c file compiled by .code16gcc, which the 0x66 add before the 'ret' */
 calll	disableA20_16
 
+/* disable protected mode */
 movl	%cr0, %eax
 andl	$0xFFFFFFFE, %eax
 movl	%eax, %cr0

@@ -110,88 +110,174 @@ udpcli_sendandwait_retry:
         return -1;
     }
 
-    printf("udp trans success.\n");
+	*cmd = ack;
+
     return 0;
 }
 
 /*
- * argv[0]: "sendfile"
- * argv[1]: "hd0" "hd1"
- * argv[2]: filename
- * argv[3]: 
+ * argv[0]: "hd0" "hd1"
+ * argv[1]: filename
+ * argv[2]: sector offset
  */
-static int updcli_sendfile(int sock, int argc, char *argv[])
+static int updcli_hdwrite(int sock, int argc, char *argv[])
 {
     u32 crc;
     udpcli_cmd *cmd = (udpcli_cmd *)malloc(sizeof(udpcli_cmd) + 2048);
 
-    if (memcmp(argv[0], "sendfile", sizeof("sendfile")) == 0)
+    if (argc != 3)
     {
-        int fd = open(argv[2], O_RDONLY);
-        if (fd < 0)
-        {
-            printf("file open failed, file:%s\n", argv[0]);
-            return -1;
-        }
-        else
-        {
-            printf("file \"%s\" open success.", argv[0]);
-        }
-        u32 filelen, logicsect, logicsectoff;
-        u8 *mappbuff;
+        printf("invalid param count. exit.\n");
+        exit(0);
+    }
 
-        sscanf(argv[3], "%d", &logicsectoff);
-
-        /* get file len */
-        filelen = lseek(fd, 0, SEEK_END);
-        printf("file len:%d   sector off:%d\n", filelen, logicsectoff);
-
-        mappbuff = mmap(0, filelen, PROT_READ, MAP_PRIVATE, fd, 0);
-
-        /* we just used the simplest protocol: stop and wait */
-        cmd->cmdtype = UDPCLI_CMD_HDWRITE;
-        cmd->totallen = sizeof(udpcli_cmd) + 1024 + 4;
-        if (memcmp(argv[1], "hd0", sizeof("hd0")) == 0)
-        {
-            cmd->u.hdwrite_s.hdidx = 0;
-        }
-        else if (memcmp(argv[1], "hd1", sizeof("hd1")) == 0)
-        {
-            cmd->u.hdwrite_s.hdidx = 1;
-        }
-
-        for (logicsect = 0; logicsect < ((filelen + 1023) / 1024); logicsect++)
-        {
-            cmd->id = logicsect;
-            cmd->u.hdwrite_s.logicsect = logicsect + logicsectoff;
-            
-            memcpy(cmd->buff, mappbuff + logicsect * 1024, 1024);
-            crc = crc32(cmd->buff, 1024);
-            cmd->buff[1024] = (u8)(crc >> 24);
-            cmd->buff[1025] = (u8)(crc >> 16);
-            cmd->buff[1026] = (u8)(crc >> 8);
-            cmd->buff[1027] = (u8)(crc >> 0);
-            if (0 != crc32_raw(cmd->buff, cmd->totallen - sizeof(udpcli_cmd)))
-            {
-                printf("crc self check failed.\n");
-            }
-            printf("send pkt...\n");
-            udpcli_sendandwait(sock, cmd);
-        }
+    int fd = open(argv[1], O_RDONLY);
+    if (fd < 0)
+    {
+        printf("file open failed, file:%s\n", argv[1]);
+        return -1;
     }
     else
     {
-        printf("unknow argv:%s\n", argv[0]);
+        printf("file \"%s\" open success.", argv[1]);
+    }
+    u32 filelen, logicsect, logicsectoff;
+    u8 *mappbuff;
+
+    sscanf(argv[2], "%d", &logicsectoff);
+
+    /* get file len */
+    filelen = lseek(fd, 0, SEEK_END);
+    printf("file len:%d   sector off:%d\n", filelen, logicsectoff);
+
+    mappbuff = mmap(0, filelen, PROT_READ, MAP_PRIVATE, fd, 0);
+
+    /* we just used the simplest protocol: stop and wait */
+    cmd->cmdtype = UDPCLI_CMD_HDWRITE;
+    cmd->totallen = sizeof(udpcli_cmd) + 1024 + 4;
+    if (memcmp(argv[0], "hd0", sizeof("hd0")) == 0)
+    {
+        cmd->u.hdwrite_s.hdidx = 0;
+    }
+    else if (memcmp(argv[0], "hd1", sizeof("hd1")) == 0)
+    {
+        cmd->u.hdwrite_s.hdidx = 1;
+    }
+
+    for (logicsect = 0; logicsect < ((filelen + 1023) / 1024); logicsect++)
+    {
+        cmd->id = logicsect;
+        cmd->u.hdwrite_s.logicsect = logicsect + logicsectoff;
+
+        memcpy(cmd->buff, mappbuff + logicsect * 1024, 1024);
+        crc = crc32(cmd->buff, 1024);
+        cmd->buff[1024] = (u8)(crc >> 24);
+        cmd->buff[1025] = (u8)(crc >> 16);
+        cmd->buff[1026] = (u8)(crc >> 8);
+        cmd->buff[1027] = (u8)(crc >> 0);
+        if (0 != crc32_raw(cmd->buff, cmd->totallen - sizeof(udpcli_cmd)))
+        {
+            printf("crc self check failed.\n");
+        }
+        printf("send pkt...\n");
+        udpcli_sendandwait(sock, cmd);
     }
 
     return 0;
 }
 
+/*
+ * argv[0]: filename
+ * argv[1]: [addr]
+ */
+static int updcli_ramwrite(int sock, int argc, char *argv[])
+{
+	udpcli_cmd *cmd = (udpcli_cmd *)malloc(sizeof(udpcli_cmd) + 2048);
+    u32 i, left, filelen, destaddr, crc;
+    u8 *mappbuff;
+
+	/* read file */
+	int fd = open(argv[0], O_RDONLY);
+    if (fd < 0)
+    {
+        printf("file open failed, file:%s\n", argv[0]);
+        return -1;
+    }
+    else
+    {
+        printf("file \"%s\" open success.", argv[0]);
+    }
+    /* get file len */
+    filelen = lseek(fd, 0, SEEK_END);
+    printf("file len:%d\n", filelen);
+	/* map file */
+	mappbuff = mmap(0, filelen, PROT_READ, MAP_PRIVATE, fd, 0);
+
+
+	if (argc == 1)
+	{
+		/* need send ramwrite_pre */
+		cmd->cmdtype = UDPCLI_CMD_RAMWRITE_PRE;
+		cmd->u.ramwrite_s.size = filelen;
+		cmd->totallen = sizeof(udpcli_cmd);
+		if (udpcli_sendandwait(sock, cmd) != 0)
+			exit(0);
+
+		destaddr = cmd->u.ramwrite_s.addr;
+		printf("ram write pre success.\n");
+	}
+
+	else if (argc != 2)
+	{
+        printf("invalid param count. exit.\n");
+        exit(0);
+	}
+	else
+	{
+		sscanf(argv[1], "0x%x", &destaddr);
+	}
+
+	printf("ram write dest addr: 0x%08x\n", destaddr);
+
+	left = filelen;
+	i = 0;
+    while (left)
+    {
+    	cmd->cmdtype = UDPCLI_CMD_RAMWRITE;
+    	cmd->totallen = sizeof(udpcli_cmd) + 1024 + 4;
+        cmd->u.ramwrite_s.addr = destaddr + i * 1024;
+		cmd->u.ramwrite_s.size = left < 1024 ? left : 1024;
+
+        memcpy(cmd->buff, mappbuff + i * 1024, cmd->u.ramwrite_s.size);
+        crc = crc32(cmd->buff, 1024);
+        cmd->buff[1024] = (u8)(crc >> 24);
+        cmd->buff[1025] = (u8)(crc >> 16);
+        cmd->buff[1026] = (u8)(crc >> 8);
+        cmd->buff[1027] = (u8)(crc >> 0);
+
+		left -= cmd->u.ramwrite_s.size;
+		i++;
+
+        if (udpcli_sendandwait(sock, cmd) == 0)
+			printf("\r%%%2.2f", (filelen - left) * 100.0 / filelen);
+    }
+
+	free(cmd);
+
+	return 0;
+}
+
 /* argv[1]: ip   x.x.x.x
- * argv[2]: sendfile
- * argv[3]: hd0, hd1
+ * argv[2]: hdwrite
+ * argv[3]: hd0 | hd1
  * argv[4]: filename
  * argv[5]: sectoff
+ */
+
+/* argv[1]: ip   x.x.x.x
+ * argv[2]: ramwrite
+ * argv[3]: filename
+ * argv[4]: [addr]
  */
 int main(int argc, char *argv[])
 {
@@ -199,12 +285,6 @@ int main(int argc, char *argv[])
     struct sockaddr_in serveraddr;
     memset(&serveraddr, 0, sizeof(serveraddr));
     serveraddr.sin_family = AF_INET;
-
-    if (argc != 6)
-    {
-        printf("invalid param count. exit.\n");
-        exit(0);
-    }
 
     /* get and config the server ip:port */
     if (inet_pton(AF_INET, argv[1], &serveraddr.sin_addr) <= 0)
@@ -243,8 +323,19 @@ int main(int argc, char *argv[])
     /* udpcli begin */
     updcli_hello(clientsock);
 
-    
-    updcli_sendfile(clientsock, argc - 2, argv + 2);
+
+	if (memcmp(argv[2], "hdwrite", sizeof("hdwrite")) == 0)
+	{
+		updcli_hdwrite(clientsock, argc - 3, argv + 3);
+	}
+	else if (memcmp(argv[2], "ramwrite", sizeof("ramwrite")) == 0)
+	{
+		updcli_ramwrite(clientsock, argc - 3, argv + 3);
+	}
+    else
+    {
+        printf("unknow argv:%s\n", argv[2]);
+    }
 
 
     /* udpcli end */
@@ -252,7 +343,7 @@ int main(int argc, char *argv[])
 
 
     close(clientsock);
-    
+
     return 0;
 }
 

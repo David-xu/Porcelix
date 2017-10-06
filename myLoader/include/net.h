@@ -26,6 +26,7 @@ typedef struct _netdev {
     u8      macaddr[6];         /* device mac */
 
     int (*tx)(struct _netdev *netdev, void *buf, u32 len);
+	int (*down)(struct _netdev *netdev, void *param);
 } netdev_t;
 
 typedef struct _ethframe {
@@ -127,7 +128,7 @@ typedef struct _upd_pseudoheader {
 
 /*
 typedef struct _ethii_vlantag {
-    
+
 } ethii_vlantag;
 */
 

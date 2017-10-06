@@ -9,6 +9,7 @@
 #include "hd.h"
 #include "debug.h"
 #include "crc32.h"
+#include "memory.h"
 
 static void udpcli_reset(sock_context_t *sock_ctx)
 {
@@ -55,7 +56,7 @@ static int udpcli_recv
         udp_send(sock_ctx, date, len);
     }
     else if (memcmp(date, CONFIG_UDPCLI_BYE_REQ, sizeof(CONFIG_UDPCLI_BYE_REQ)) == 0)
-    {    
+    {
         /* disconnect from the client */
         printk("[udpcli]disconnect from client:%d.%d.%d.%d %d\n",
                sock_ctx->destip[0],
@@ -115,17 +116,47 @@ static int udpcli_recv
 
             udp_send(sock_ctx, cmd, sizeof(udpcli_cmd));
         }
+		else if (cmd->cmdtype == UDPCLI_CMD_RAMWRITE_PRE)
+		{
+			u32 size = cmd->u.ramwrite_s.size;
+			void *addr = page_alloc(get_pagerank(size), MMAREA_NORMAL);
+
+			cmd->cmd_ack = UDPCLI_CMDTYPE_ACK;
+			cmd->totallen = sizeof(udpcli_cmd);
+			cmd->u.ramwrite_s.addr = (u32)addr;
+			udp_send(sock_ctx, cmd, sizeof(udpcli_cmd));
+		}
+		else if (cmd->cmdtype == UDPCLI_CMD_RAMWRITE)
+		{
+            /* check the crc */
+            if (0 != crc32_raw(cmd->buff, cmd->totallen - sizeof(udpcli_cmd)))
+            {
+                printk("crc check failed.\n");
+                cmd->cmd_ack = UDPCLI_CMDTYPE_RETRY;
+
+				sock_ctx->netdev->down(sock_ctx->netdev, NULL);
+            }
+			else
+			{
+				memcpy((void *)cmd->u.ramwrite_s.addr, cmd->buff, cmd->u.ramwrite_s.size);
+				cmd->cmd_ack = UDPCLI_CMDTYPE_ACK;
+			}
+
+            cmd->totallen = sizeof(udpcli_cmd);
+
+            udp_send(sock_ctx, cmd, sizeof(udpcli_cmd));
+		}
         else
         {
             printk("[udpcli]unknown command type:%d\n", cmd->cmdtype);
         }
     }
-    
+
     return 0;
 }
 
 /* leave the srcip == 0.0.0.0 */
-static sock_context_t udpcli_sockctx = 
+static sock_context_t udpcli_sockctx =
 {
     .localport = CONFIG_UDPCLI_DEFAULTPORT,
     .destport = PORT_ALL,

@@ -22,6 +22,8 @@
 #define PCI_BUS_WIDTH                   (8)
 #define PCI_BUS_COUNT                   (0x1 << PCI_BUS_WIDTH)
 
+#define PCI_CFG_COMMAND					(0x4)
+
 #define PCI_CFG_BAR0_OFFSET             (0x10)
 #define PCI_CFG_BAR1_OFFSET             (0x14)
 #define PCI_CFG_BAR2_OFFSET             (0x18)
@@ -112,7 +114,8 @@ typedef struct pci_dev {
     pci_drv_t *pcidrv;              /*  */
 
     u16 bar_io;
-    u32 bar_mem;
+	u32 n_bar_mem;
+    u32 bar_mem[5];
 
     void *param;
 } pci_dev_t;
@@ -121,6 +124,8 @@ void getpciinfo(u32 bus, u32 dev, u32 func, pcicfgdata_t *pcicfg);
 void pci_init(void);
 void pci_dispcfgdata(pcicfgdata_t *pcicfg);
 int pcidrv_register(pci_drv_t *drv);
+int pcicfg_readw(pci_dev_t *pcidev, u32 off, u16 *val);
+int pcicfg_writew(pci_dev_t *pcidev, u32 off, u16 val);
 
 
 #endif

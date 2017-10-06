@@ -286,7 +286,7 @@ static void __init pgmode_enable(void)
 	/* let's get one page for the pgd */
 
 	/* make sure the page table all in normal area */
-	
+
 	u32 pa = 0, i, cr3 = (u32)page_alloc(BUDDY_RANK_4K, MMAREA_NORMAL | PAF_ZERO);
 	u32 ptebuf_rank;
 	pde_t *pde = (pde_t *)cr3;
@@ -296,6 +296,7 @@ static void __init pgmode_enable(void)
 	/* do the low MM_NORMALMEM_RANGE va mmap to pa */
 	ptebuf_rank = log2(MM_NORMALMEM_RANGE >> PUBLIC_BITWIDTH_1M);
 	pte = (pte_t *)page_alloc(ptebuf_rank, MMAREA_NORMAL | PAF_ZERO);
+	printk("pte: 0x%#8x\n", pte);
 
 	while (pa < MM_NORMALMEM_RANGE)
 	{
@@ -313,6 +314,9 @@ static void __init pgmode_enable(void)
 		pte->us = 0;
 		pte->rw = 1;
 		pte->p = 1;
+
+		// pte->pwt = 1;
+		pte->pcd = 1;
 
 		pte++;
 
@@ -340,7 +344,7 @@ static void mmarea_init(void)
 	u32 i, j;
 
 	ASSERT(ram_size > g_mmarea[MMAREA_LOW1M].size);
-	
+
 	g_mmarea[MMAREA_NORMAL].begin = g_mmarea[MMAREA_LOW1M].size;
 	g_mmarea[MMAREA_NORMAL].size = ((MM_NORMALMEM_RANGE < ram_size) ? MM_NORMALMEM_RANGE : ram_size)
 									- g_mmarea[MMAREA_LOW1M].size;
@@ -352,9 +356,9 @@ static void mmarea_init(void)
 		g_mmarea[MMAREA_HIGHMM].size = ram_size - MM_NORMALMEM_RANGE;
 	}
 	/* else, without highmm */
-	
+
     /* init the fpage_list */
-	for (i = 0; i < MMAREA_NUM; i++)		
+	for (i = 0; i < MMAREA_NUM; i++)
 	    for (j = 0; j < BUDDY_RANKNUM; j++)
 	        _list_init(&(g_mmarea[i].fpage_list[j]));
 }
@@ -386,7 +390,7 @@ int resoure_add_range(resource_t *sr, u32 begin, u32 size, u32 flag)
 
 	if ((sr->n_range + 2) > MM_RANGERESOURCE_MAXNUM)
 		return -2;
-	
+
 	/* find place where to insert this new range */
 	for (i = 0; i < sr->n_range; i++)
 	{
@@ -416,7 +420,7 @@ int resoure_add_range(resource_t *sr, u32 begin, u32 size, u32 flag)
 		sr->rd[sr->n_range].flag = RANGERESOURCE_TYPE_IDLE;
 		(sr->n_range)++;
 	}
-		
+
 	/* there is some hole behind current range, add idle */
 	if ((begin + size) < (cur_begin + cur_size))
 	{
@@ -489,7 +493,7 @@ struct command cmd_pagestat _SECTION_(.array.cmd) =
  *   (.init.text) |     system       |   hole   |   page_list   |
  *  (1). value of symbol_inittext_end
  *  (2). value of symbol_sys_end
- *  
+ *
  ******************************************************************************/
 void mem_init(void)
 {
@@ -505,8 +509,8 @@ void mem_init(void)
 
     /* system ram space + extend ram space */
 	struct raminfo *raminfo = (struct raminfo *)(void *)raminfo_buf;
-    ram_size = 1024 * 1024 + 
-               raminfo->ax * 1024 + 
+    ram_size = 1024 * 1024 +
+               raminfo->ax * 1024 +
                raminfo->bx * 1024 * 64;
 
     printk("Detected ram size is : %dM %dK, ", ram_size >> 20, (ram_size >> 10) & 0x3FF);
