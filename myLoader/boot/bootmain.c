@@ -32,9 +32,11 @@ void bootc_entry(void)
 	u32 coreaddr = IMGCORE_LOADADDR + 0x1000;
 	u16 n_sect, cn;
 	struct bootparam *bp = (struct bootparam *)(0x200 - sizeof(struct bootparam));
+#if 0
 	if (bp->boot_dev == 0x80)
 		da.BlockNum = bp->core_lba;
 	else
+#endif
 		da.BlockNum = bp->core_lba / 4;
 
     /* we want to load the core.bin
@@ -42,17 +44,19 @@ void bootc_entry(void)
 	n_sect = bp->n_sect;
 	while (n_sect)
 	{
-		if (n_sect > 16)
+		if (n_sect > 4)
 		{
-			cn = 16;
+			cn = 4;
 		}
 		else
 		{
 			cn = n_sect;
 		}
+#if 0
 		if (bp->boot_dev == 0x80)
 			da.BlockCount = cn;
 		else
+#endif
 			da.BlockCount = (cn + 3) / 4;
 
 		// da.BufferAddr = ((coreaddr & 0x000FFFF0) << 12) | (coreaddr & 0xF);
@@ -72,9 +76,11 @@ void bootc_entry(void)
 
 		n_sect -= cn;
 		coreaddr += cn * HD_SECTOR_SIZE;
+#if 0
 		if (bp->boot_dev == 0x80)
 			da.BlockNum += cn;
 		else
+#endif
 			da.BlockNum += cn / 4;
 	}
 	/* now coreaddr is useless,      (H16 bit)                 (L16 bit)
