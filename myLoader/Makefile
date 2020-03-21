@@ -39,8 +39,9 @@ obj := $(src_c:.c=.o) $(src_S:.S=.o)
 # -fno-stack-protector 不使用栈保护 这里是在编译自定义的printf时出现了undefined reference to `__stack_chk_fail'
 # -fno-builtin 不使用内建函数 否则无法编译名称为printf memcpy memset等等会被自动识别为内建函数的名称
 # -fno-optimize-sibling-calls 关闭了gcc对尾递归调用的优化，gcc的尾递归调用优化就是用jmp替换call 这样一来就导致调用栈信息缺失了，所以我们暂时关闭了这个优化来方便调试
+# -fno-delete-null-pointer-checks -O2开启时会开启-delete-null-pointer-checks，即认为所有的0指针访问均是非法的，然后强行插入UD2指令陷入，简直是多管闲事。
 ASFLAGS = -I$(CURDIR) -Iinclude -fno-common -m32
-CFLAGS = -Wall -O2 -I$(CURDIR) -Iinclude -fno-stack-protector -fno-builtin -fno-strict-aliasing -fno-common -fno-optimize-sibling-calls -march=i386 -m32 -D__MLD__ -DMLD_DATE=$(CUR_DATE)
+CFLAGS = -Wall -Wno-unused-function -O2 -I$(CURDIR) -Iinclude -fno-pic -fno-stack-protector -fno-builtin -fno-strict-aliasing -fno-common -fno-optimize-sibling-calls -fno-delete-null-pointer-checks -march=i386 -m32 -D__MLD__ -DMLD_DATE=$(CUR_DATE)
 LDFLAGS = 
 
 # the target

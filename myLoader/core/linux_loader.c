@@ -68,7 +68,7 @@ void linux_start(void *bootmem, u32 size)
 	 */
 
 	// boothead = page_alloc(get_pagerank(size), MMAREA_NORMAL);
-	boothead = 0x70000;
+	boothead = (linux_boothead_t *)V2P(0x70000);
 	memcpy(boothead, bootmem,
 		(((linux_boothead_t *)bootmem)->setup_sects + 1) * 512);
 

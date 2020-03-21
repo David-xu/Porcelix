@@ -7,6 +7,9 @@
 
 #define barrier() asm volatile("" ::: "memory")
 
+#define P2V(p)		((char *)(p) - (char *)0)
+#define V2P(v)		((void *)0 + v)
+
 #define PUBLIC_BITWIDTH_1M         (20)
 #define PUBLIC_BITWIDTH_1K         (10)
 #define PUBLIC_BITWIDTH_4K         (12)

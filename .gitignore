@@ -1,0 +1,6 @@
+*.o
+*.iso
+mkiso
+*.bin
+*.elf
+*.map
